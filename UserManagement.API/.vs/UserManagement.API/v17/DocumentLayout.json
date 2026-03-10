@@ -3,6 +3,18 @@
   "WorkspaceRootPath": "D:\\Fresher\\UserManagement.API\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{47F73A7C-D41C-3C9A-A4F0-41F243243B92}|UserManagement.API.csproj|d:\\fresher\\usermanagement.api\\usermanagement.api.http||{5703B403-55E7-4C63-8C88-A8F52C7A45C5}",
+      "RelativeMoniker": "D:0:0:{47F73A7C-D41C-3C9A-A4F0-41F243243B92}|UserManagement.API.csproj|solutionrelative:usermanagement.api.http||{5703B403-55E7-4C63-8C88-A8F52C7A45C5}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{47F73A7C-D41C-3C9A-A4F0-41F243243B92}|UserManagement.API.csproj|d:\\fresher\\usermanagement.api\\models\\user.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{47F73A7C-D41C-3C9A-A4F0-41F243243B92}|UserManagement.API.csproj|solutionrelative:models\\user.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{47F73A7C-D41C-3C9A-A4F0-41F243243B92}|UserManagement.API.csproj|d:\\fresher\\usermanagement.api\\controllers\\userscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{47F73A7C-D41C-3C9A-A4F0-41F243243B92}|UserManagement.API.csproj|solutionrelative:controllers\\userscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{47F73A7C-D41C-3C9A-A4F0-41F243243B92}|UserManagement.API.csproj|d:\\fresher\\usermanagement.api\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{47F73A7C-D41C-3C9A-A4F0-41F243243B92}|UserManagement.API.csproj|solutionrelative:program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
@@ -11,12 +23,8 @@
       "RelativeMoniker": "D:0:0:{47F73A7C-D41C-3C9A-A4F0-41F243243B92}|UserManagement.API.csproj|solutionrelative:data\\appdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{47F73A7C-D41C-3C9A-A4F0-41F243243B92}|UserManagement.API.csproj|d:\\fresher\\usermanagement.api\\controllers\\userscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{47F73A7C-D41C-3C9A-A4F0-41F243243B92}|UserManagement.API.csproj|solutionrelative:controllers\\userscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{47F73A7C-D41C-3C9A-A4F0-41F243243B92}|UserManagement.API.csproj|d:\\fresher\\usermanagement.api\\usermanagement.api.http||{5703B403-55E7-4C63-8C88-A8F52C7A45C5}",
-      "RelativeMoniker": "D:0:0:{47F73A7C-D41C-3C9A-A4F0-41F243243B92}|UserManagement.API.csproj|solutionrelative:usermanagement.api.http||{5703B403-55E7-4C63-8C88-A8F52C7A45C5}"
+      "AbsoluteMoniker": "D:0:0:{47F73A7C-D41C-3C9A-A4F0-41F243243B92}|UserManagement.API.csproj|d:\\fresher\\usermanagement.api\\migrations\\appdbcontextmodelsnapshot.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{47F73A7C-D41C-3C9A-A4F0-41F243243B92}|UserManagement.API.csproj|solutionrelative:migrations\\appdbcontextmodelsnapshot.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -26,33 +34,56 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 1,
+          "SelectedChildIndex": 5,
           "Children": [
             {
               "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "AppDbContextModelSnapshot.cs",
+              "DocumentMoniker": "D:\\Fresher\\UserManagement.API\\Migrations\\AppDbContextModelSnapshot.cs",
+              "RelativeDocumentMoniker": "Migrations\\AppDbContextModelSnapshot.cs",
+              "ToolTip": "D:\\Fresher\\UserManagement.API\\Migrations\\AppDbContextModelSnapshot.cs",
+              "RelativeToolTip": "Migrations\\AppDbContextModelSnapshot.cs",
+              "ViewState": "AgIAAAYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-10T01:55:26.768Z"
+            },
+            {
+              "$type": "Document",
               "DocumentIndex": 1,
+              "Title": "User.cs",
+              "DocumentMoniker": "D:\\Fresher\\UserManagement.API\\Models\\User.cs",
+              "RelativeDocumentMoniker": "Models\\User.cs",
+              "ToolTip": "D:\\Fresher\\UserManagement.API\\Models\\User.cs",
+              "RelativeToolTip": "Models\\User.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAQAAAADAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-10T01:54:22.46Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
               "Title": "AppDbContext.cs",
               "DocumentMoniker": "D:\\Fresher\\UserManagement.API\\Data\\AppDbContext.cs",
               "RelativeDocumentMoniker": "Data\\AppDbContext.cs",
               "ToolTip": "D:\\Fresher\\UserManagement.API\\Data\\AppDbContext.cs",
               "RelativeToolTip": "Data\\AppDbContext.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAqwAoAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-03-09T16:10:24.953Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-03-09T16:10:24.953Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 3,
               "Title": "Program.cs",
               "DocumentMoniker": "D:\\Fresher\\UserManagement.API\\Program.cs",
               "RelativeDocumentMoniker": "Program.cs",
               "ToolTip": "D:\\Fresher\\UserManagement.API\\Program.cs",
               "RelativeToolTip": "Program.cs",
-              "ViewState": "AgIAAAMAAAAAAAAAAAAAABgAAAAYAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABgAAAAYAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-03-09T16:08:40.873Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-03-09T16:08:40.873Z"
             },
             {
               "$type": "Document",
@@ -62,20 +93,19 @@
               "RelativeDocumentMoniker": "Controllers\\UsersController.cs",
               "ToolTip": "D:\\Fresher\\UserManagement.API\\Controllers\\UsersController.cs",
               "RelativeToolTip": "Controllers\\UsersController.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAABsAAAAAAAAAAAAowAQAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-03-09T16:04:31.118Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-03-09T16:04:31.118Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 0,
               "Title": "UserManagement.API.http",
               "DocumentMoniker": "D:\\Fresher\\UserManagement.API\\UserManagement.API.http",
               "RelativeDocumentMoniker": "UserManagement.API.http",
               "ToolTip": "D:\\Fresher\\UserManagement.API\\UserManagement.API.http",
               "RelativeToolTip": "UserManagement.API.http",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003502|",
               "WhenOpened": "2026-03-09T15:34:22.069Z",
               "EditorCaption": ""
