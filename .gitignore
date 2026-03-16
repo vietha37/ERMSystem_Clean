@@ -1,13 +1,23 @@
-# node
-node_modules
-.next
+# Thư mục build
+[Bb]in/
+[Oo]bj/
 
-# .NET
-bin/
-obj/
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
 
-# env
-.env
+# Logs
+*.log
+build.log
+db_update.log
 
-# system
+# Cấu hình cá nhân
+.config/
+rules.antigravityrules
+
+# Thư mục Tool/OS
 .DS_Store
+thumbs.db
