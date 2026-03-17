@@ -6,10 +6,10 @@ namespace ERMSystem.Application.Interfaces
 {
     public interface IPrescriptionItemRepository
     {
-        Task<PrescriptionItem?> GetByIdAsync(Guid id);
-        Task AddAsync(PrescriptionItem item);
-        void Delete(PrescriptionItem item);
-        Task<bool> MedicineExistsAsync(Guid medicineId);
-        Task<bool> PrescriptionExistsAsync(Guid prescriptionId);
+        Task<PrescriptionItem?> GetByIdAsync(Guid id, CancellationToken ct = default);
+        Task AddAsync(PrescriptionItem item, CancellationToken ct = default);
+        Task DeleteAsync(PrescriptionItem item, CancellationToken ct = default);
+        Task<bool> MedicineExistsAsync(Guid medicineId, CancellationToken ct = default);
+        Task<bool> PrescriptionExistsAsync(Guid prescriptionId, CancellationToken ct = default);
     }
 }

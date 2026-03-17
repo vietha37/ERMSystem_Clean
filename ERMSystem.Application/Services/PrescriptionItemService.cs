@@ -1,7 +1,8 @@
 using System;
-using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using ERMSystem.Application.DTOs;
+using ERMSystem.Application.Helpers;
 using ERMSystem.Application.Interfaces;
 using ERMSystem.Domain.Entities;
 
@@ -20,44 +21,50 @@ namespace ERMSystem.Application.Services
             _prescriptionRepository = prescriptionRepository;
         }
 
-        public async Task<PrescriptionDto> AddItemToPrescriptionAsync(Guid prescriptionId, AddPrescriptionItemDto addPrescriptionItemDto)
+        public async Task<PrescriptionDto> AddItemToPrescriptionAsync(
+            Guid prescriptionId,
+            AddPrescriptionItemDto dto,
+            CancellationToken ct = default)
         {
-            var prescriptionExists = await _itemRepository.PrescriptionExistsAsync(prescriptionId);
+            var prescriptionExists = await _itemRepository.PrescriptionExistsAsync(prescriptionId, ct);
             if (!prescriptionExists)
                 throw new KeyNotFoundException($"Prescription with ID {prescriptionId} not found.");
 
-            var medicineExists = await _itemRepository.MedicineExistsAsync(addPrescriptionItemDto.MedicineId);
+            var medicineExists = await _itemRepository.MedicineExistsAsync(dto.MedicineId, ct);
             if (!medicineExists)
-                throw new KeyNotFoundException($"Medicine with ID {addPrescriptionItemDto.MedicineId} not found.");
+                throw new KeyNotFoundException($"Medicine with ID {dto.MedicineId} not found.");
 
             var item = new PrescriptionItem
             {
                 Id = Guid.NewGuid(),
                 PrescriptionId = prescriptionId,
-                MedicineId = addPrescriptionItemDto.MedicineId,
-                Dosage = addPrescriptionItemDto.Dosage,
-                Duration = addPrescriptionItemDto.Duration
+                MedicineId = dto.MedicineId,
+                Dosage = dto.Dosage,
+                Duration = dto.Duration
             };
 
-            await _itemRepository.AddAsync(item);
+            await _itemRepository.AddAsync(item, ct);
 
             // Reload the full prescription with updated items
-            var prescription = await _prescriptionRepository.GetByIdAsync(prescriptionId);
-            return PrescriptionService.MapToDto(prescription!);
+            var prescription = await _prescriptionRepository.GetByIdAsync(prescriptionId, ct);
+            return PrescriptionMapper.ToDto(prescription!);
         }
 
-        public async Task<PrescriptionDto> RemoveItemFromPrescriptionAsync(Guid prescriptionId, Guid itemId)
+        public async Task<PrescriptionDto> RemoveItemFromPrescriptionAsync(
+            Guid prescriptionId,
+            Guid itemId,
+            CancellationToken ct = default)
         {
-            var item = await _itemRepository.GetByIdAsync(itemId);
+            var item = await _itemRepository.GetByIdAsync(itemId, ct);
             if (item == null || item.PrescriptionId != prescriptionId)
                 throw new KeyNotFoundException(
                     $"PrescriptionItem {itemId} not found on Prescription {prescriptionId}.");
 
-            _itemRepository.Delete(item);
+            await _itemRepository.DeleteAsync(item, ct);
 
             // Reload the full prescription with updated items
-            var prescription = await _prescriptionRepository.GetByIdAsync(prescriptionId);
-            return PrescriptionService.MapToDto(prescription!);
+            var prescription = await _prescriptionRepository.GetByIdAsync(prescriptionId, ct);
+            return PrescriptionMapper.ToDto(prescription!);
         }
     }
 }

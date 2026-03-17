@@ -7,12 +7,15 @@ namespace ERMSystem.Application.Interfaces
 {
     public interface IAppointmentRepository
     {
-        Task<List<Appointment>> GetAllAsync();
-        Task<Appointment?> GetByIdAsync(Guid id);
-        Task AddAsync(Appointment appointment);
-        void Update(Appointment appointment);
-        void Delete(Appointment appointment);
-        Task<bool> PatientExistsAsync(Guid patientId);
-        Task<bool> DoctorExistsAsync(Guid doctorId);
+        Task<List<Appointment>> GetAllAsync(CancellationToken ct = default);
+        Task<(IEnumerable<Appointment> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize, CancellationToken ct = default);
+        Task<int> GetAppointmentsTodayCountAsync(CancellationToken ct = default);
+        Task<int> GetCompletedAppointmentsCountAsync(CancellationToken ct = default);
+        Task<Appointment?> GetByIdAsync(Guid id, CancellationToken ct = default);
+        Task AddAsync(Appointment appointment, CancellationToken ct = default);
+        Task UpdateAsync(Appointment appointment, CancellationToken ct = default);
+        Task DeleteAsync(Appointment appointment, CancellationToken ct = default);
+        Task<bool> PatientExistsAsync(Guid patientId, CancellationToken ct = default);
+        Task<bool> DoctorExistsAsync(Guid doctorId, CancellationToken ct = default);
     }
 }

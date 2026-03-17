@@ -6,9 +6,6 @@ namespace ERMSystem.Application.DTOs
     public class UpdateAppointmentDto
     {
         [Required]
-        public Guid Id { get; set; }
-
-        [Required]
         public Guid PatientId { get; set; }
 
         [Required]

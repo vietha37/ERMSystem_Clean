@@ -16,52 +16,63 @@ namespace ERMSystem.Infrastructure.Data
         public DbSet<Prescription> Prescriptions { get; set; } = null!;
         public DbSet<Medicine> Medicines { get; set; } = null!;
         public DbSet<PrescriptionItem> PrescriptionItems { get; set; } = null!;
+        public DbSet<AppUser> AppUsers { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            // Một bệnh nhân có nhiều cuộc hẹn.
+            // A patient has many appointments.
             modelBuilder.Entity<Appointment>()
                 .HasOne(a => a.Patient)
                 .WithMany(p => p.Appointments)
                 .HasForeignKey(a => a.PatientId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Một bác sĩ có nhiều lịch hẹn.
+            // A doctor has many appointments.
             modelBuilder.Entity<Appointment>()
                 .HasOne(a => a.Doctor)
                 .WithMany(d => d.Appointments)
                 .HasForeignKey(a => a.DoctorId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Một cuộc hẹn có một hồ sơ bệnh án.
+            // An appointment has exactly one medical record (one-to-one).
             modelBuilder.Entity<MedicalRecord>()
                 .HasOne(m => m.Appointment)
                 .WithOne(a => a.MedicalRecord)
                 .HasForeignKey<MedicalRecord>(m => m.AppointmentId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Một hồ sơ bệnh án có nhiều đơn thuốc.
+            // A medical record has at most one prescription (enforced by unique index).
             modelBuilder.Entity<Prescription>()
                 .HasOne(p => p.MedicalRecord)
                 .WithMany(m => m.Prescriptions)
                 .HasForeignKey(p => p.MedicalRecordId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Một đơn thuốc có nhiều mục trong đơn thuốc.
+            // DB-level guarantee: one prescription per medical record.
+            modelBuilder.Entity<Prescription>()
+                .HasIndex(p => p.MedicalRecordId)
+                .IsUnique();
+
+            // A prescription has many prescription items.
             modelBuilder.Entity<PrescriptionItem>()
                 .HasOne(pi => pi.Prescription)
                 .WithMany(p => p.PrescriptionItems)
                 .HasForeignKey(pi => pi.PrescriptionId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Một loại thuốc có nhiều mục trong đơn thuốc.
+            // A medicine can appear in many prescription items.
             modelBuilder.Entity<PrescriptionItem>()
                 .HasOne(pi => pi.Medicine)
                 .WithMany(m => m.PrescriptionItems)
                 .HasForeignKey(pi => pi.MedicineId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // Username must be unique.
+            modelBuilder.Entity<AppUser>()
+                .HasIndex(u => u.Username)
+                .IsUnique();
         }
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using ERMSystem.Application.Interfaces;
@@ -16,31 +17,25 @@ namespace ERMSystem.Infrastructure.Repositories
             _context = context;
         }
 
-        public async Task<PrescriptionItem?> GetByIdAsync(Guid id)
+        public async Task<PrescriptionItem?> GetByIdAsync(Guid id, CancellationToken ct = default)
+            => await _context.PrescriptionItems.FindAsync(new object[] { id }, ct);
+
+        public async Task AddAsync(PrescriptionItem item, CancellationToken ct = default)
         {
-            return await _context.PrescriptionItems.FindAsync(id);
+            await _context.PrescriptionItems.AddAsync(item, ct);
+            await _context.SaveChangesAsync(ct);
         }
 
-        public async Task AddAsync(PrescriptionItem item)
-        {
-            await _context.PrescriptionItems.AddAsync(item);
-            await _context.SaveChangesAsync();
-        }
-
-        public void Delete(PrescriptionItem item)
+        public async Task DeleteAsync(PrescriptionItem item, CancellationToken ct = default)
         {
             _context.PrescriptionItems.Remove(item);
-            _context.SaveChanges();
+            await _context.SaveChangesAsync(ct);
         }
 
-        public async Task<bool> MedicineExistsAsync(Guid medicineId)
-        {
-            return await _context.Medicines.AnyAsync(m => m.Id == medicineId);
-        }
+        public async Task<bool> MedicineExistsAsync(Guid medicineId, CancellationToken ct = default)
+            => await _context.Medicines.AnyAsync(m => m.Id == medicineId, ct);
 
-        public async Task<bool> PrescriptionExistsAsync(Guid prescriptionId)
-        {
-            return await _context.Prescriptions.AnyAsync(p => p.Id == prescriptionId);
-        }
+        public async Task<bool> PrescriptionExistsAsync(Guid prescriptionId, CancellationToken ct = default)
+            => await _context.Prescriptions.AnyAsync(p => p.Id == prescriptionId, ct);
     }
 }

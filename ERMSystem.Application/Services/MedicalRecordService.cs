@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using ERMSystem.Application.DTOs;
+using ERMSystem.Application.DTOs.Common;
 using ERMSystem.Application.Interfaces;
 using ERMSystem.Domain.Entities;
 
@@ -17,81 +19,78 @@ namespace ERMSystem.Application.Services
             _medicalRecordRepository = medicalRecordRepository;
         }
 
-        public async Task<IEnumerable<MedicalRecordDto>> GetAllMedicalRecordsAsync()
+        public async Task<PaginatedResult<MedicalRecordDto>> GetAllMedicalRecordsAsync(PaginationRequest request, CancellationToken ct = default)
         {
-            var records = await _medicalRecordRepository.GetAllAsync();
-            return records.Select(MapToDto);
+            var (items, totalCount) = await _medicalRecordRepository.GetPagedAsync(request.PageNumber, request.PageSize, ct);
+            return new PaginatedResult<MedicalRecordDto>(items.Select(MapToDto), totalCount, request.PageNumber, request.PageSize);
         }
 
-        public async Task<MedicalRecordDto?> GetMedicalRecordByIdAsync(Guid id)
+        public async Task<MedicalRecordDto?> GetMedicalRecordByIdAsync(Guid id, CancellationToken ct = default)
         {
-            var record = await _medicalRecordRepository.GetByIdAsync(id);
+            var record = await _medicalRecordRepository.GetByIdAsync(id, ct);
             return record == null ? null : MapToDto(record);
         }
 
-        public async Task<MedicalRecordDto?> GetMedicalRecordByAppointmentIdAsync(Guid appointmentId)
+        public async Task<MedicalRecordDto?> GetMedicalRecordByAppointmentIdAsync(Guid appointmentId, CancellationToken ct = default)
         {
-            var record = await _medicalRecordRepository.GetByAppointmentIdAsync(appointmentId);
+            var record = await _medicalRecordRepository.GetByAppointmentIdAsync(appointmentId, ct);
             return record == null ? null : MapToDto(record);
         }
 
-        public async Task<MedicalRecordDto> CreateMedicalRecordAsync(CreateMedicalRecordDto createMedicalRecordDto)
+        public async Task<MedicalRecordDto> CreateMedicalRecordAsync(CreateMedicalRecordDto dto, CancellationToken ct = default)
         {
-            var appointmentExists = await _medicalRecordRepository.AppointmentExistsAsync(createMedicalRecordDto.AppointmentId);
+            var appointmentExists = await _medicalRecordRepository.AppointmentExistsAsync(dto.AppointmentId, ct);
             if (!appointmentExists)
-                throw new KeyNotFoundException(
-                    $"Appointment with ID {createMedicalRecordDto.AppointmentId} not found.");
+                throw new KeyNotFoundException($"Appointment with ID {dto.AppointmentId} not found.");
 
             var recordAlreadyExists = await _medicalRecordRepository
-                .MedicalRecordExistsForAppointmentAsync(createMedicalRecordDto.AppointmentId);
+                .MedicalRecordExistsForAppointmentAsync(dto.AppointmentId, ct);
             if (recordAlreadyExists)
                 throw new InvalidOperationException(
-                    $"A MedicalRecord already exists for Appointment {createMedicalRecordDto.AppointmentId}.");
+                    $"A MedicalRecord already exists for Appointment {dto.AppointmentId}.");
 
             var record = new MedicalRecord
             {
                 Id = Guid.NewGuid(),
-                AppointmentId = createMedicalRecordDto.AppointmentId,
-                Symptoms = createMedicalRecordDto.Symptoms,
-                Diagnosis = createMedicalRecordDto.Diagnosis,
-                Notes = createMedicalRecordDto.Notes
+                AppointmentId = dto.AppointmentId,
+                Symptoms = dto.Symptoms,
+                Diagnosis = dto.Diagnosis,
+                Notes = dto.Notes
             };
 
-            await _medicalRecordRepository.AddAsync(record);
-
+            await _medicalRecordRepository.AddAsync(record, ct);
             return MapToDto(record);
         }
 
-        public async Task UpdateMedicalRecordAsync(UpdateMedicalRecordDto updateMedicalRecordDto)
+        public async Task UpdateMedicalRecordAsync(Guid id, UpdateMedicalRecordDto dto, CancellationToken ct = default)
         {
-            var record = await _medicalRecordRepository.GetByIdAsync(updateMedicalRecordDto.Id);
-            if (record == null)
-                throw new KeyNotFoundException(
-                    $"MedicalRecord with ID {updateMedicalRecordDto.Id} not found.");
-
-            record.Symptoms = updateMedicalRecordDto.Symptoms;
-            record.Diagnosis = updateMedicalRecordDto.Diagnosis;
-            record.Notes = updateMedicalRecordDto.Notes;
-
-            _medicalRecordRepository.Update(record);
-        }
-
-        public async Task DeleteMedicalRecordAsync(Guid id)
-        {
-            var record = await _medicalRecordRepository.GetByIdAsync(id);
+            var record = await _medicalRecordRepository.GetByIdAsync(id, ct);
             if (record == null)
                 throw new KeyNotFoundException($"MedicalRecord with ID {id} not found.");
 
-            _medicalRecordRepository.Delete(record);
+            record.Symptoms = dto.Symptoms;
+            record.Diagnosis = dto.Diagnosis;
+            record.Notes = dto.Notes;
+
+            await _medicalRecordRepository.UpdateAsync(record, ct);
         }
 
-        private static MedicalRecordDto MapToDto(MedicalRecord record) => new MedicalRecordDto
+        public async Task DeleteMedicalRecordAsync(Guid id, CancellationToken ct = default)
         {
-            Id = record.Id,
-            AppointmentId = record.AppointmentId,
-            Symptoms = record.Symptoms,
-            Diagnosis = record.Diagnosis,
-            Notes = record.Notes
+            var record = await _medicalRecordRepository.GetByIdAsync(id, ct);
+            if (record == null)
+                throw new KeyNotFoundException($"MedicalRecord with ID {id} not found.");
+
+            await _medicalRecordRepository.DeleteAsync(record, ct);
+        }
+
+        private static MedicalRecordDto MapToDto(MedicalRecord r) => new MedicalRecordDto
+        {
+            Id = r.Id,
+            AppointmentId = r.AppointmentId,
+            Symptoms = r.Symptoms,
+            Diagnosis = r.Diagnosis,
+            Notes = r.Notes
         };
     }
 }

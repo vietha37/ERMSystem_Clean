@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using ERMSystem.Application.Interfaces;
@@ -17,48 +18,65 @@ namespace ERMSystem.Infrastructure.Repositories
             _context = context;
         }
 
-        public async Task<List<Appointment>> GetAllAsync()
-        {
-            return await _context.Appointments
+        public async Task<List<Appointment>> GetAllAsync(CancellationToken ct = default)
+            => await _context.Appointments
                 .Include(a => a.Patient)
                 .Include(a => a.Doctor)
-                .ToListAsync();
-        }
+                .ToListAsync(ct);
 
-        public async Task<Appointment?> GetByIdAsync(Guid id)
+        public async Task<(IEnumerable<Appointment> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize, CancellationToken ct = default)
         {
-            return await _context.Appointments
+            var totalCount = await _context.Appointments.CountAsync(ct);
+            var items = await _context.Appointments
                 .Include(a => a.Patient)
                 .Include(a => a.Doctor)
-                .FirstOrDefaultAsync(a => a.Id == id);
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(ct);
+            return (items, totalCount);
         }
 
-        public async Task AddAsync(Appointment appointment)
+        public async Task<int> GetAppointmentsTodayCountAsync(CancellationToken ct = default)
         {
-            await _context.Appointments.AddAsync(appointment);
-            await _context.SaveChangesAsync();
+            var today = DateTime.UtcNow.Date;
+            return await _context.Appointments
+                .Where(a => a.AppointmentDate.Date == today)
+                .CountAsync(ct);
         }
 
-        public void Update(Appointment appointment)
+        public async Task<int> GetCompletedAppointmentsCountAsync(CancellationToken ct = default)
+            => await _context.Appointments
+                .Where(a => a.Status == "Completed")
+                .CountAsync(ct);
+
+        public async Task<Appointment?> GetByIdAsync(Guid id, CancellationToken ct = default)
+            => await _context.Appointments
+                .Include(a => a.Patient)
+                .Include(a => a.Doctor)
+                .FirstOrDefaultAsync(a => a.Id == id, ct);
+
+        public async Task AddAsync(Appointment appointment, CancellationToken ct = default)
+        {
+            await _context.Appointments.AddAsync(appointment, ct);
+            await _context.SaveChangesAsync(ct);
+        }
+
+        public async Task UpdateAsync(Appointment appointment, CancellationToken ct = default)
         {
             _context.Appointments.Update(appointment);
-            _context.SaveChanges();
+            await _context.SaveChangesAsync(ct);
         }
 
-        public void Delete(Appointment appointment)
+        public async Task DeleteAsync(Appointment appointment, CancellationToken ct = default)
         {
             _context.Appointments.Remove(appointment);
-            _context.SaveChanges();
+            await _context.SaveChangesAsync(ct);
         }
 
-        public async Task<bool> PatientExistsAsync(Guid patientId)
-        {
-            return await _context.Patients.AnyAsync(p => p.Id == patientId);
-        }
+        public async Task<bool> PatientExistsAsync(Guid patientId, CancellationToken ct = default)
+            => await _context.Patients.AnyAsync(p => p.Id == patientId, ct);
 
-        public async Task<bool> DoctorExistsAsync(Guid doctorId)
-        {
-            return await _context.Doctors.AnyAsync(d => d.Id == doctorId);
-        }
+        public async Task<bool> DoctorExistsAsync(Guid doctorId, CancellationToken ct = default)
+            => await _context.Doctors.AnyAsync(d => d.Id == doctorId, ct);
     }
 }

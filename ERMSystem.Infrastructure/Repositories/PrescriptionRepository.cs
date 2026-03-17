@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using ERMSystem.Application.Interfaces;
@@ -17,50 +18,52 @@ namespace ERMSystem.Infrastructure.Repositories
             _context = context;
         }
 
-        public async Task<List<Prescription>> GetAllAsync()
-        {
-            return await _context.Prescriptions
+        public async Task<List<Prescription>> GetAllAsync(CancellationToken ct = default)
+            => await _context.Prescriptions
                 .Include(p => p.PrescriptionItems)
                     .ThenInclude(i => i.Medicine)
-                .ToListAsync();
-        }
+                .ToListAsync(ct);
 
-        public async Task<Prescription?> GetByIdAsync(Guid id)
+        public async Task<(IEnumerable<Prescription> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize, CancellationToken ct = default)
         {
-            return await _context.Prescriptions
+            var totalCount = await _context.Prescriptions.CountAsync(ct);
+            var items = await _context.Prescriptions
                 .Include(p => p.PrescriptionItems)
                     .ThenInclude(i => i.Medicine)
-                .FirstOrDefaultAsync(p => p.Id == id);
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(ct);
+            return (items, totalCount);
         }
 
-        public async Task<Prescription?> GetByMedicalRecordIdAsync(Guid medicalRecordId)
-        {
-            return await _context.Prescriptions
+        public async Task<Prescription?> GetByIdAsync(Guid id, CancellationToken ct = default)
+            => await _context.Prescriptions
                 .Include(p => p.PrescriptionItems)
                     .ThenInclude(i => i.Medicine)
-                .FirstOrDefaultAsync(p => p.MedicalRecordId == medicalRecordId);
-        }
+                .FirstOrDefaultAsync(p => p.Id == id, ct);
 
-        public async Task AddAsync(Prescription prescription)
+        public async Task<Prescription?> GetByMedicalRecordIdAsync(Guid medicalRecordId, CancellationToken ct = default)
+            => await _context.Prescriptions
+                .Include(p => p.PrescriptionItems)
+                    .ThenInclude(i => i.Medicine)
+                .FirstOrDefaultAsync(p => p.MedicalRecordId == medicalRecordId, ct);
+
+        public async Task AddAsync(Prescription prescription, CancellationToken ct = default)
         {
-            await _context.Prescriptions.AddAsync(prescription);
-            await _context.SaveChangesAsync();
+            await _context.Prescriptions.AddAsync(prescription, ct);
+            await _context.SaveChangesAsync(ct);
         }
 
-        public void Delete(Prescription prescription)
+        public async Task DeleteAsync(Prescription prescription, CancellationToken ct = default)
         {
             _context.Prescriptions.Remove(prescription);
-            _context.SaveChanges();
+            await _context.SaveChangesAsync(ct);
         }
 
-        public async Task<bool> MedicalRecordExistsAsync(Guid medicalRecordId)
-        {
-            return await _context.MedicalRecords.AnyAsync(m => m.Id == medicalRecordId);
-        }
+        public async Task<bool> MedicalRecordExistsAsync(Guid medicalRecordId, CancellationToken ct = default)
+            => await _context.MedicalRecords.AnyAsync(m => m.Id == medicalRecordId, ct);
 
-        public async Task<bool> PrescriptionExistsForMedicalRecordAsync(Guid medicalRecordId)
-        {
-            return await _context.Prescriptions.AnyAsync(p => p.MedicalRecordId == medicalRecordId);
-        }
+        public async Task<bool> PrescriptionExistsForMedicalRecordAsync(Guid medicalRecordId, CancellationToken ct = default)
+            => await _context.Prescriptions.AnyAsync(p => p.MedicalRecordId == medicalRecordId, ct);
     }
 }

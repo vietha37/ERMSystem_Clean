@@ -1,14 +1,18 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ERMSystem.Application.DTOs;
+using ERMSystem.Application.DTOs.Common;
 using ERMSystem.Application.Interfaces;
 
 namespace ERMSystem.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class MedicalRecordsController : ControllerBase
     {
         private readonly IMedicalRecordService _medicalRecordService;
@@ -20,44 +24,42 @@ namespace ERMSystem.API.Controllers
 
         // GET: api/medicalrecords
         [HttpGet]
-        public async Task<IActionResult> GetAllMedicalRecords()
+        public async Task<IActionResult> GetAllMedicalRecords([FromQuery] PaginationRequest request, CancellationToken ct)
         {
-            var records = await _medicalRecordService.GetAllMedicalRecordsAsync();
-            return Ok(records);
+            var result = await _medicalRecordService.GetAllMedicalRecordsAsync(request, ct);
+            return Ok(result);
         }
 
         // GET: api/medicalrecords/{id}
         [HttpGet("{id}")]
-        public async Task<IActionResult> GetMedicalRecordById(Guid id)
+        public async Task<IActionResult> GetMedicalRecordById(Guid id, CancellationToken ct)
         {
-            var record = await _medicalRecordService.GetMedicalRecordByIdAsync(id);
+            var record = await _medicalRecordService.GetMedicalRecordByIdAsync(id, ct);
             if (record == null)
                 return NotFound($"MedicalRecord with ID {id} not found.");
-
             return Ok(record);
         }
 
         // GET: api/medicalrecords/by-appointment/{appointmentId}
         [HttpGet("by-appointment/{appointmentId}")]
-        public async Task<IActionResult> GetByAppointmentId(Guid appointmentId)
+        public async Task<IActionResult> GetByAppointmentId(Guid appointmentId, CancellationToken ct)
         {
-            var record = await _medicalRecordService.GetMedicalRecordByAppointmentIdAsync(appointmentId);
+            var record = await _medicalRecordService.GetMedicalRecordByAppointmentIdAsync(appointmentId, ct);
             if (record == null)
                 return NotFound($"No MedicalRecord found for Appointment {appointmentId}.");
-
             return Ok(record);
         }
 
         // POST: api/medicalrecords
         [HttpPost]
-        public async Task<IActionResult> CreateMedicalRecord([FromBody] CreateMedicalRecordDto createMedicalRecordDto)
+        public async Task<IActionResult> CreateMedicalRecord([FromBody] CreateMedicalRecordDto createMedicalRecordDto, CancellationToken ct)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
             try
             {
-                var created = await _medicalRecordService.CreateMedicalRecordAsync(createMedicalRecordDto);
+                var created = await _medicalRecordService.CreateMedicalRecordAsync(createMedicalRecordDto, ct);
                 return CreatedAtAction(nameof(GetMedicalRecordById), new { id = created.Id }, created);
             }
             catch (KeyNotFoundException ex)
@@ -72,17 +74,14 @@ namespace ERMSystem.API.Controllers
 
         // PUT: api/medicalrecords/{id}
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateMedicalRecord(Guid id, [FromBody] UpdateMedicalRecordDto updateMedicalRecordDto)
+        public async Task<IActionResult> UpdateMedicalRecord(Guid id, [FromBody] UpdateMedicalRecordDto updateMedicalRecordDto, CancellationToken ct)
         {
-            if (id != updateMedicalRecordDto.Id)
-                return BadRequest("MedicalRecord ID mismatch.");
-
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
             try
             {
-                await _medicalRecordService.UpdateMedicalRecordAsync(updateMedicalRecordDto);
+                await _medicalRecordService.UpdateMedicalRecordAsync(id, updateMedicalRecordDto, ct);
             }
             catch (KeyNotFoundException ex)
             {
@@ -94,11 +93,11 @@ namespace ERMSystem.API.Controllers
 
         // DELETE: api/medicalrecords/{id}
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteMedicalRecord(Guid id)
+        public async Task<IActionResult> DeleteMedicalRecord(Guid id, CancellationToken ct)
         {
             try
             {
-                await _medicalRecordService.DeleteMedicalRecordAsync(id);
+                await _medicalRecordService.DeleteMedicalRecordAsync(id, ct);
             }
             catch (KeyNotFoundException ex)
             {

@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using ERMSystem.Application.DTOs;
+using ERMSystem.Application.DTOs.Common;
 using ERMSystem.Application.Interfaces;
 using ERMSystem.Domain.Entities;
 
@@ -20,93 +22,87 @@ namespace ERMSystem.Application.Services
             _appointmentRepository = appointmentRepository;
         }
 
-        public async Task<IEnumerable<AppointmentDto>> GetAllAppointmentsAsync()
+        public async Task<PaginatedResult<AppointmentDto>> GetAllAppointmentsAsync(PaginationRequest request, CancellationToken ct = default)
         {
-            var appointments = await _appointmentRepository.GetAllAsync();
-            return appointments.Select(MapToDto);
+            var (items, totalCount) = await _appointmentRepository.GetPagedAsync(request.PageNumber, request.PageSize, ct);
+            return new PaginatedResult<AppointmentDto>(items.Select(MapToDto), totalCount, request.PageNumber, request.PageSize);
         }
 
-        public async Task<AppointmentDto?> GetAppointmentByIdAsync(Guid id)
+        public async Task<AppointmentDto?> GetAppointmentByIdAsync(Guid id, CancellationToken ct = default)
         {
-            var appointment = await _appointmentRepository.GetByIdAsync(id);
+            var appointment = await _appointmentRepository.GetByIdAsync(id, ct);
             return appointment == null ? null : MapToDto(appointment);
         }
 
-        public async Task<AppointmentDto> CreateAppointmentAsync(CreateAppointmentDto createAppointmentDto)
+        public async Task<AppointmentDto> CreateAppointmentAsync(CreateAppointmentDto dto, CancellationToken ct = default)
         {
-            if (!ValidStatuses.Contains(createAppointmentDto.Status))
+            if (!ValidStatuses.Contains(dto.Status))
                 throw new ArgumentException(
-                    $"Invalid status '{createAppointmentDto.Status}'. Must be Pending, Completed, or Cancelled.");
+                    $"Invalid status '{dto.Status}'. Must be Pending, Completed, or Cancelled.");
 
-            var patientExists = await _appointmentRepository.PatientExistsAsync(createAppointmentDto.PatientId);
+            var patientExists = await _appointmentRepository.PatientExistsAsync(dto.PatientId, ct);
             if (!patientExists)
-                throw new KeyNotFoundException(
-                    $"Patient with ID {createAppointmentDto.PatientId} not found.");
+                throw new KeyNotFoundException($"Patient with ID {dto.PatientId} not found.");
 
-            var doctorExists = await _appointmentRepository.DoctorExistsAsync(createAppointmentDto.DoctorId);
+            var doctorExists = await _appointmentRepository.DoctorExistsAsync(dto.DoctorId, ct);
             if (!doctorExists)
-                throw new KeyNotFoundException(
-                    $"Doctor with ID {createAppointmentDto.DoctorId} not found.");
+                throw new KeyNotFoundException($"Doctor with ID {dto.DoctorId} not found.");
 
             var appointment = new Appointment
             {
                 Id = Guid.NewGuid(),
-                PatientId = createAppointmentDto.PatientId,
-                DoctorId = createAppointmentDto.DoctorId,
-                AppointmentDate = createAppointmentDto.AppointmentDate,
-                Status = createAppointmentDto.Status
+                PatientId = dto.PatientId,
+                DoctorId = dto.DoctorId,
+                AppointmentDate = dto.AppointmentDate,
+                Status = dto.Status
             };
 
-            await _appointmentRepository.AddAsync(appointment);
-
+            await _appointmentRepository.AddAsync(appointment, ct);
             return MapToDto(appointment);
         }
 
-        public async Task UpdateAppointmentAsync(UpdateAppointmentDto updateAppointmentDto)
+        public async Task UpdateAppointmentAsync(Guid id, UpdateAppointmentDto dto, CancellationToken ct = default)
         {
-            var appointment = await _appointmentRepository.GetByIdAsync(updateAppointmentDto.Id);
-            if (appointment == null)
-                throw new KeyNotFoundException(
-                    $"Appointment with ID {updateAppointmentDto.Id} not found.");
-
-            if (!ValidStatuses.Contains(updateAppointmentDto.Status))
-                throw new ArgumentException(
-                    $"Invalid status '{updateAppointmentDto.Status}'. Must be Pending, Completed, or Cancelled.");
-
-            var patientExists = await _appointmentRepository.PatientExistsAsync(updateAppointmentDto.PatientId);
-            if (!patientExists)
-                throw new KeyNotFoundException(
-                    $"Patient with ID {updateAppointmentDto.PatientId} not found.");
-
-            var doctorExists = await _appointmentRepository.DoctorExistsAsync(updateAppointmentDto.DoctorId);
-            if (!doctorExists)
-                throw new KeyNotFoundException(
-                    $"Doctor with ID {updateAppointmentDto.DoctorId} not found.");
-
-            appointment.PatientId = updateAppointmentDto.PatientId;
-            appointment.DoctorId = updateAppointmentDto.DoctorId;
-            appointment.AppointmentDate = updateAppointmentDto.AppointmentDate;
-            appointment.Status = updateAppointmentDto.Status;
-
-            _appointmentRepository.Update(appointment);
-        }
-
-        public async Task DeleteAppointmentAsync(Guid id)
-        {
-            var appointment = await _appointmentRepository.GetByIdAsync(id);
+            var appointment = await _appointmentRepository.GetByIdAsync(id, ct);
             if (appointment == null)
                 throw new KeyNotFoundException($"Appointment with ID {id} not found.");
 
-            _appointmentRepository.Delete(appointment);
+            if (!ValidStatuses.Contains(dto.Status))
+                throw new ArgumentException(
+                    $"Invalid status '{dto.Status}'. Must be Pending, Completed, or Cancelled.");
+
+            var patientExists = await _appointmentRepository.PatientExistsAsync(dto.PatientId, ct);
+            if (!patientExists)
+                throw new KeyNotFoundException($"Patient with ID {dto.PatientId} not found.");
+
+            var doctorExists = await _appointmentRepository.DoctorExistsAsync(dto.DoctorId, ct);
+            if (!doctorExists)
+                throw new KeyNotFoundException($"Doctor with ID {dto.DoctorId} not found.");
+
+            appointment.PatientId = dto.PatientId;
+            appointment.DoctorId = dto.DoctorId;
+            appointment.AppointmentDate = dto.AppointmentDate;
+            appointment.Status = dto.Status;
+
+            await _appointmentRepository.UpdateAsync(appointment, ct);
         }
 
-        private static AppointmentDto MapToDto(Appointment appointment) => new AppointmentDto
+        public async Task DeleteAppointmentAsync(Guid id, CancellationToken ct = default)
         {
-            Id = appointment.Id,
-            PatientId = appointment.PatientId,
-            DoctorId = appointment.DoctorId,
-            AppointmentDate = appointment.AppointmentDate,
-            Status = appointment.Status
+            var appointment = await _appointmentRepository.GetByIdAsync(id, ct);
+            if (appointment == null)
+                throw new KeyNotFoundException($"Appointment with ID {id} not found.");
+
+            await _appointmentRepository.DeleteAsync(appointment, ct);
+        }
+
+        private static AppointmentDto MapToDto(Appointment a) => new AppointmentDto
+        {
+            Id = a.Id,
+            PatientId = a.PatientId,
+            DoctorId = a.DoctorId,
+            AppointmentDate = a.AppointmentDate,
+            Status = a.Status
         };
     }
 }

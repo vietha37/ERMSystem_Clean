@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using ERMSystem.Application.DTOs;
+using ERMSystem.Application.DTOs.Common;
+using ERMSystem.Application.Helpers;
 using ERMSystem.Application.Interfaces;
 using ERMSystem.Domain.Entities;
 
@@ -17,71 +20,54 @@ namespace ERMSystem.Application.Services
             _prescriptionRepository = prescriptionRepository;
         }
 
-        public async Task<IEnumerable<PrescriptionDto>> GetAllPrescriptionsAsync()
+        public async Task<PaginatedResult<PrescriptionDto>> GetAllPrescriptionsAsync(PaginationRequest request, CancellationToken ct = default)
         {
-            var prescriptions = await _prescriptionRepository.GetAllAsync();
-            return prescriptions.Select(MapToDto);
+            var (items, totalCount) = await _prescriptionRepository.GetPagedAsync(request.PageNumber, request.PageSize, ct);
+            return new PaginatedResult<PrescriptionDto>(items.Select(PrescriptionMapper.ToDto), totalCount, request.PageNumber, request.PageSize);
         }
 
-        public async Task<PrescriptionDto?> GetPrescriptionByIdAsync(Guid id)
+        public async Task<PrescriptionDto?> GetPrescriptionByIdAsync(Guid id, CancellationToken ct = default)
         {
-            var prescription = await _prescriptionRepository.GetByIdAsync(id);
-            return prescription == null ? null : MapToDto(prescription);
+            var prescription = await _prescriptionRepository.GetByIdAsync(id, ct);
+            return prescription == null ? null : PrescriptionMapper.ToDto(prescription);
         }
 
-        public async Task<PrescriptionDto?> GetPrescriptionByMedicalRecordIdAsync(Guid medicalRecordId)
+        public async Task<PrescriptionDto?> GetPrescriptionByMedicalRecordIdAsync(Guid medicalRecordId, CancellationToken ct = default)
         {
-            var prescription = await _prescriptionRepository.GetByMedicalRecordIdAsync(medicalRecordId);
-            return prescription == null ? null : MapToDto(prescription);
+            var prescription = await _prescriptionRepository.GetByMedicalRecordIdAsync(medicalRecordId, ct);
+            return prescription == null ? null : PrescriptionMapper.ToDto(prescription);
         }
 
-        public async Task<PrescriptionDto> CreatePrescriptionAsync(CreatePrescriptionDto createPrescriptionDto)
+        public async Task<PrescriptionDto> CreatePrescriptionAsync(CreatePrescriptionDto dto, CancellationToken ct = default)
         {
-            var medicalRecordExists = await _prescriptionRepository.MedicalRecordExistsAsync(createPrescriptionDto.MedicalRecordId);
+            var medicalRecordExists = await _prescriptionRepository.MedicalRecordExistsAsync(dto.MedicalRecordId, ct);
             if (!medicalRecordExists)
-                throw new KeyNotFoundException(
-                    $"MedicalRecord with ID {createPrescriptionDto.MedicalRecordId} not found.");
+                throw new KeyNotFoundException($"MedicalRecord with ID {dto.MedicalRecordId} not found.");
 
             var prescriptionAlreadyExists = await _prescriptionRepository
-                .PrescriptionExistsForMedicalRecordAsync(createPrescriptionDto.MedicalRecordId);
+                .PrescriptionExistsForMedicalRecordAsync(dto.MedicalRecordId, ct);
             if (prescriptionAlreadyExists)
                 throw new InvalidOperationException(
-                    $"A Prescription already exists for MedicalRecord {createPrescriptionDto.MedicalRecordId}.");
+                    $"A Prescription already exists for MedicalRecord {dto.MedicalRecordId}.");
 
             var prescription = new Prescription
             {
                 Id = Guid.NewGuid(),
-                MedicalRecordId = createPrescriptionDto.MedicalRecordId,
+                MedicalRecordId = dto.MedicalRecordId,
                 CreatedAt = DateTime.UtcNow
             };
 
-            await _prescriptionRepository.AddAsync(prescription);
-
-            return MapToDto(prescription);
+            await _prescriptionRepository.AddAsync(prescription, ct);
+            return PrescriptionMapper.ToDto(prescription);
         }
 
-        public async Task DeletePrescriptionAsync(Guid id)
+        public async Task DeletePrescriptionAsync(Guid id, CancellationToken ct = default)
         {
-            var prescription = await _prescriptionRepository.GetByIdAsync(id);
+            var prescription = await _prescriptionRepository.GetByIdAsync(id, ct);
             if (prescription == null)
                 throw new KeyNotFoundException($"Prescription with ID {id} not found.");
 
-            _prescriptionRepository.Delete(prescription);
+            await _prescriptionRepository.DeleteAsync(prescription, ct);
         }
-
-        public static PrescriptionDto MapToDto(Prescription prescription) => new PrescriptionDto
-        {
-            Id = prescription.Id,
-            MedicalRecordId = prescription.MedicalRecordId,
-            CreatedAt = prescription.CreatedAt,
-            Items = prescription.PrescriptionItems.Select(i => new PrescriptionItemDto
-            {
-                Id = i.Id,
-                PrescriptionId = i.PrescriptionId,
-                MedicineId = i.MedicineId,
-                Dosage = i.Dosage,
-                Duration = i.Duration
-            }).ToList()
-        };
     }
 }

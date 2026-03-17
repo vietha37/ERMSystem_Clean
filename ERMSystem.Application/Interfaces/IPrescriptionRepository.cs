@@ -7,12 +7,13 @@ namespace ERMSystem.Application.Interfaces
 {
     public interface IPrescriptionRepository
     {
-        Task<List<Prescription>> GetAllAsync();
-        Task<Prescription?> GetByIdAsync(Guid id);
-        Task<Prescription?> GetByMedicalRecordIdAsync(Guid medicalRecordId);
-        Task AddAsync(Prescription prescription);
-        void Delete(Prescription prescription);
-        Task<bool> MedicalRecordExistsAsync(Guid medicalRecordId);
-        Task<bool> PrescriptionExistsForMedicalRecordAsync(Guid medicalRecordId);
+        Task<List<Prescription>> GetAllAsync(CancellationToken ct = default);
+        Task<(IEnumerable<Prescription> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize, CancellationToken ct = default);
+        Task<Prescription?> GetByIdAsync(Guid id, CancellationToken ct = default);
+        Task<Prescription?> GetByMedicalRecordIdAsync(Guid medicalRecordId, CancellationToken ct = default);
+        Task AddAsync(Prescription prescription, CancellationToken ct = default);
+        Task DeleteAsync(Prescription prescription, CancellationToken ct = default);
+        Task<bool> MedicalRecordExistsAsync(Guid medicalRecordId, CancellationToken ct = default);
+        Task<bool> PrescriptionExistsForMedicalRecordAsync(Guid medicalRecordId, CancellationToken ct = default);
     }
 }
