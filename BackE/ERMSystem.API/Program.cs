@@ -70,6 +70,16 @@ builder.Services.AddScoped<IPrescriptionItemService, PrescriptionItemService>();
 // ── DI – Dashboard ────────────────────────────────────────────────────────────
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
 builder.Services.AddControllers();
 
 var app = builder.Build();
@@ -82,6 +92,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseCors("AllowFrontend");
 
 app.UseAuthentication();
 app.UseAuthorization();

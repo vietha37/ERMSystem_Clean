@@ -1,0 +1,12 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\.github",
+    "\\.github\\workflows",
+    "\\ERMSystem.API",
+    "\\ERMSystem.Application\\Helpers",
+    "\\ERMSystem.Infrastructure\\Data"
+  ],
+  "SelectedNode": "\\ERMSystem.API\\Program.cs",
+  "PreviewInSolutionExplorer": false
+}
