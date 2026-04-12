@@ -69,6 +69,7 @@ builder.Services.AddScoped<IPrescriptionItemService, PrescriptionItemService>();
 
 // ── DI – Dashboard ────────────────────────────────────────────────────────────
 builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 
 builder.Services.AddCors(options =>
 {

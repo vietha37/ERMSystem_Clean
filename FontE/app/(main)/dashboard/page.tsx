@@ -1,117 +1,528 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { dashboardService } from "@/services/dashboardService";
+import { DashboardStats, DashboardTrendPoint, DashboardTrends } from "@/services/types";
+import { getApiErrorMessage } from "@/services/error";
 import toast from "react-hot-toast";
 
+type TrendPeriod = "daily" | "monthly";
+
+function toDateInputValue(date: Date): string {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 10);
+}
+
+function getDefaultRange(period: TrendPeriod): { from: string; to: string } {
+  const today = new Date();
+
+  if (period === "monthly") {
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const from = new Date(monthStart);
+    from.setMonth(from.getMonth() - 11);
+    return { from: toDateInputValue(from), to: toDateInputValue(today) };
+  }
+
+  const from = new Date(today);
+  from.setDate(from.getDate() - 29);
+  return { from: toDateInputValue(from), to: toDateInputValue(today) };
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function formatNumber(value: number): string {
+  return new Intl.NumberFormat("vi-VN").format(value);
+}
+
+function chartPoints(values: number[], width: number, height: number, padding: number): string {
+  if (values.length === 0) return "";
+  const max = Math.max(...values, 1);
+  const innerWidth = width - padding * 2;
+  const innerHeight = height - padding * 2;
+
+  return values
+    .map((value, idx) => {
+      const x = padding + (idx * innerWidth) / Math.max(values.length - 1, 1);
+      const y = padding + innerHeight - (value / max) * innerHeight;
+      return `${x},${y}`;
+    })
+    .join(" ");
+}
+
+function areaPath(points: string, width: number, height: number, padding: number): string {
+  if (!points) return "";
+  const first = points.split(" ")[0];
+  const last = points.split(" ").at(-1);
+  if (!first || !last) return "";
+  const firstX = first.split(",")[0];
+  const lastX = last.split(",")[0];
+  const bottomY = height - padding;
+  return `M ${firstX},${bottomY} L ${points.replaceAll(" ", " L ")} L ${lastX},${bottomY} Z`;
+}
+
+function ProgressRing({
+  value,
+  colorClass,
+}: {
+  value: number;
+  colorClass: string;
+}) {
+  const size = 64;
+  const stroke = 7;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const progress = (clamp(value, 0, 100) / 100) * circumference;
+
+  return (
+    <div className="relative h-16 w-16">
+      <svg width={size} height={size} className="-rotate-90">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="#dbeafe"
+          strokeWidth={stroke}
+          fill="transparent"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="currentColor"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={circumference - progress}
+          className={colorClass}
+          fill="transparent"
+        />
+      </svg>
+      <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-slate-600">
+        {Math.round(value)}%
+      </span>
+    </div>
+  );
+}
+
+function KpiCard({
+  title,
+  value,
+  percent,
+  colorClass,
+  note,
+}: {
+  title: string;
+  value: number;
+  percent: number;
+  colorClass: string;
+  note: string;
+}) {
+  return (
+    <Card className="rounded-3xl border border-slate-100 bg-white/90 p-5 shadow-sm">
+      <div className="mb-3 flex items-start justify-between">
+        <div>
+          <p className="text-sm font-semibold text-slate-700">{title}</p>
+          <p className="mt-2 text-2xl font-bold text-slate-900">{formatNumber(value)}</p>
+          <p className="mt-1 text-xs text-slate-500">{note}</p>
+        </div>
+        <ProgressRing value={percent} colorClass={colorClass} />
+      </div>
+    </Card>
+  );
+}
+
+function MainTrendChart({ points }: { points: DashboardTrendPoint[] }) {
+  const width = 980;
+  const height = 310;
+  const padding = 28;
+  const patientValues = points.map((point) => point.patientsCount);
+  const prescriptionValues = points.map((point) => point.prescriptionsCount);
+  const maxValue = Math.max(...patientValues, ...prescriptionValues, 1);
+  const patientLine = chartPoints(patientValues, width, height, padding);
+  const prescriptionLine = chartPoints(prescriptionValues, width, height, padding);
+  const patientArea = areaPath(patientLine, width, height, padding);
+  const labelStep = Math.max(1, Math.floor(points.length / 7));
+
+  return (
+    <div className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <p className="text-sm font-semibold text-slate-800">Analysis</p>
+          <p className="text-xs text-slate-500">Patients and prescriptions movement</p>
+        </div>
+        <div className="flex items-center gap-4 text-xs">
+          <span className="flex items-center gap-2 text-slate-600">
+            <span className="h-2.5 w-2.5 rounded-full bg-blue-500" />
+            Patients
+          </span>
+          <span className="flex items-center gap-2 text-slate-600">
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+            Prescriptions
+          </span>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <svg viewBox={`0 0 ${width} ${height}`} className="h-72 w-full min-w-[700px]">
+          <defs>
+            <linearGradient id="patientsFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.02" />
+            </linearGradient>
+          </defs>
+
+          {[0, 0.25, 0.5, 0.75, 1].map((tick) => {
+            const y = padding + (1 - tick) * (height - padding * 2);
+            const value = Math.round(maxValue * tick);
+            return (
+              <g key={tick}>
+                <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="#e2e8f0" strokeWidth="1" />
+                <text x={6} y={y + 4} fontSize="11" fill="#94a3b8">
+                  {value}
+                </text>
+              </g>
+            );
+          })}
+
+          <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="#cbd5e1" />
+          <line x1={padding} y1={padding} x2={padding} y2={height - padding} stroke="#cbd5e1" />
+
+          {patientArea ? <path d={patientArea} fill="url(#patientsFill)" /> : null}
+          <polyline fill="none" stroke="#2563eb" strokeWidth="3" points={patientLine} />
+          <polyline fill="none" stroke="#10b981" strokeWidth="2.5" points={prescriptionLine} />
+
+          {points.map((point, idx) => {
+            if (idx % labelStep !== 0 && idx !== points.length - 1) return null;
+            const x = padding + (idx * (width - padding * 2)) / Math.max(points.length - 1, 1);
+            return (
+              <text
+                key={`${point.label}-${idx}`}
+                x={x}
+                y={height - 8}
+                textAnchor="middle"
+                fontSize="11"
+                fill="#64748b"
+              >
+                {point.label}
+              </text>
+            );
+          })}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
-  const [data, setData] = useState<any>(null);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [trends, setTrends] = useState<DashboardTrends | null>(null);
+  const [period, setPeriod] = useState<TrendPeriod>("daily");
+  const initialRange = useMemo(() => getDefaultRange("daily"), []);
+  const [fromDate, setFromDate] = useState(initialRange.from);
+  const [toDate, setToDate] = useState(initialRange.to);
   const [isLoading, setIsLoading] = useState(true);
+  const [isTrendsLoading, setIsTrendsLoading] = useState(true);
 
   useEffect(() => {
     const fetchStats = async () => {
+      setIsLoading(true);
       try {
         const result = await dashboardService.getStats();
-        setData(result);
-      } catch (error) {
-        toast.error("Failed to load dashboard statistics.");
-        // Fallback mock data if API fails
-        setData({
-          totalPatients: 0,
-          appointmentsToday: 0,
-          completedAppointments: 0,
-          topDiagnoses: [
-             { name: "Mock Hypertension", count: 12 },
-             { name: "Mock Diabetes", count: 8 }
-          ]
-        });
+        setStats(result);
+      } catch (error: unknown) {
+        toast.error(getApiErrorMessage(error, "Khong the tai thong ke tong quan."));
+        setStats(null);
       } finally {
         setIsLoading(false);
       }
     };
+
     fetchStats();
   }, []);
 
+  useEffect(() => {
+    const range = getDefaultRange(period);
+    setFromDate(range.from);
+    setToDate(range.to);
+  }, [period]);
+
+  useEffect(() => {
+    const fetchTrends = async () => {
+      if (!fromDate || !toDate || fromDate > toDate) {
+        setTrends(null);
+        setIsTrendsLoading(false);
+        return;
+      }
+
+      setIsTrendsLoading(true);
+      try {
+        const result = await dashboardService.getTrends({
+          period,
+          fromDate,
+          toDate,
+        });
+        setTrends(result);
+      } catch (error: unknown) {
+        toast.error(getApiErrorMessage(error, "Khong the tai du lieu bieu do."));
+        setTrends(null);
+      } finally {
+        setIsTrendsLoading(false);
+      }
+    };
+
+    fetchTrends();
+  }, [period, fromDate, toDate]);
+
+  const trendPoints = useMemo(() => trends?.points ?? [], [trends]);
+
+  const topDiagnoses = useMemo(() => {
+    return Object.entries(stats?.topDiagnoses || {})
+      .map(([name, count]) => ({ name, count: Number(count) }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  }, [stats]);
+
+  const trendSummary = useMemo(() => {
+    if (!trends && trendPoints.length === 0) {
+      return {
+        totalPatients: 0,
+        totalPrescriptions: 0,
+        previousPatients: 0,
+        previousPrescriptions: 0,
+      };
+    }
+
+    const totalPatients = trends?.currentPatientsTotal
+      ?? trendPoints.reduce((sum, item) => sum + item.patientsCount, 0);
+    const totalPrescriptions = trends?.currentPrescriptionsTotal
+      ?? trendPoints.reduce((sum, item) => sum + item.prescriptionsCount, 0);
+    const previousPatients = trends?.previousPatientsTotal ?? 0;
+    const previousPrescriptions = trends?.previousPrescriptionsTotal ?? 0;
+
+    return {
+      totalPatients,
+      totalPrescriptions,
+      previousPatients,
+      previousPrescriptions,
+    };
+  }, [trendPoints, trends]);
+
+  const compareDelta = useMemo(() => {
+    return {
+      patients: trendSummary.totalPatients - trendSummary.previousPatients,
+      prescriptions: trendSummary.totalPrescriptions - trendSummary.previousPrescriptions,
+    };
+  }, [trendSummary]);
+
+  const miniBars = useMemo(() => {
+    const data = trendPoints.slice(-8);
+    const max = Math.max(...data.map((item) => item.patientsCount + item.prescriptionsCount), 1);
+
+    return data.map((item) => ({
+      label: item.label,
+      patientsHeight: Math.round((item.patientsCount / max) * 100),
+      prescriptionsHeight: Math.round((item.prescriptionsCount / max) * 100),
+    }));
+  }, [trendPoints]);
+
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-        <p className="mt-4 text-gray-500 font-medium tracking-wide">Loading statistics...</p>
+      <div className="flex min-h-[60vh] flex-col items-center justify-center">
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600" />
+        <p className="mt-4 font-medium tracking-wide text-slate-500">Loading dashboard...</p>
       </div>
     );
   }
 
-  const stats = [
-    { label: "Total Patients", value: data?.totalPatients || 0, icon: "👥" },
-    { label: "Appointments Today", value: data?.appointmentsToday || 0, icon: "📅" },
-    { label: "Completed Appointments", value: data?.completedAppointments || 0, icon: "✅" },
-  ];
+  const patients = stats?.totalPatients ?? 0;
+  const appointmentsToday = stats?.appointmentsToday ?? 0;
+  const completed = stats?.completedAppointments ?? 0;
+
+  const patientsPercent = clamp((patients / 1000) * 100, 0, 100);
+  const todayPercent = clamp((appointmentsToday / 50) * 100, 0, 100);
+  const completedPercent = clamp((completed / Math.max(appointmentsToday, 1)) * 100, 0, 100);
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold text-gray-800">Dashboard Overview</h1>
-        <button className="bg-blue-600 text-white px-4 py-2 rounded-xl font-medium shadow-sm hover:shadow hover:bg-blue-500 transition-all duration-200">
-          + New Appointment
-        </button>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {stats.map((stat, i) => (
-          <Card key={i} className="bg-gradient-to-br from-blue-500 to-blue-600 border-none shadow-md hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300">
-            <div className="flex items-center justify-between">
+    <div className="animate-fade-in space-y-6">
+      <div className="rounded-[28px] border border-slate-200/70 bg-gradient-to-br from-slate-100 to-blue-50 p-4 shadow-inner md:p-6">
+        <div className="grid gap-4 xl:grid-cols-12">
+          <div className="space-y-4 xl:col-span-9">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-100 bg-white px-5 py-4 shadow-sm">
               <div>
-                <p className="text-blue-100 text-sm font-medium mb-1">{stat.label}</p>
-                <h3 className="text-4xl font-bold text-white">{stat.value}</h3>
+                <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+                <p className="text-xs text-slate-500">Hospital operation overview</p>
               </div>
-              <div className="text-5xl opacity-80">{stat.icon}</div>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm text-slate-700 outline-none focus:border-blue-400"
+                />
+                <span className="text-sm text-slate-400">-</span>
+                <input
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm text-slate-700 outline-none focus:border-blue-400"
+                />
+                <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
+                  <button
+                    onClick={() => setPeriod("daily")}
+                    className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                      period === "daily" ? "bg-white text-blue-700 shadow-sm" : "text-slate-600"
+                    }`}
+                  >
+                    Day
+                  </button>
+                  <button
+                    onClick={() => setPeriod("monthly")}
+                    className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                      period === "monthly" ? "bg-white text-blue-700 shadow-sm" : "text-slate-600"
+                    }`}
+                  >
+                    Month
+                  </button>
+                </div>
+              </div>
             </div>
-          </Card>
-        ))}
-      </div>
 
-      {/* Main Content Area */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <Card className="h-full min-h-[400px]">
-            <div className="flex justify-between items-center border-b border-gray-100 pb-4 mb-4">
-               <h2 className="text-xl font-semibold text-gray-800">Today's Schedule</h2>
-               <span className="bg-blue-50 text-blue-600 text-sm font-medium px-3 py-1 rounded-full">{data?.appointmentsToday || 0} total</span>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <KpiCard
+                title="Total Patients"
+                value={patients}
+                percent={patientsPercent}
+                colorClass="text-blue-500"
+                note="Overall registered patients"
+              />
+              <KpiCard
+                title="Appointments Today"
+                value={appointmentsToday}
+                percent={todayPercent}
+                colorClass="text-sky-500"
+                note="New and follow-up visits"
+              />
+              <KpiCard
+                title="Completed Today"
+                value={completed}
+                percent={completedPercent}
+                colorClass="text-emerald-500"
+                note="Consultations completed"
+              />
             </div>
-            
-            <div className="flex flex-col items-center justify-center h-64 text-gray-400">
-              <span className="text-4xl mb-3">🕒</span>
-              <p>Schedule list will load here...</p>
+
+            {isTrendsLoading ? (
+              <Card className="flex h-[390px] items-center justify-center rounded-3xl border border-slate-100 bg-white text-slate-500">
+                Loading chart...
+              </Card>
+            ) : trendPoints.length > 0 ? (
+              <MainTrendChart points={trendPoints} />
+            ) : (
+              <Card className="flex h-[390px] items-center justify-center rounded-3xl border border-slate-100 bg-white text-slate-500">
+                No trend data.
+              </Card>
+            )}
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Card className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+                <p className="text-sm font-semibold text-slate-800">Top 5 Diagnoses</p>
+                <div className="mt-4 space-y-3">
+                  {topDiagnoses.length ? (
+                    topDiagnoses.map((item, index) => (
+                      <div key={item.name} className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2">
+                        <span className="text-sm font-medium text-slate-700">
+                          {index + 1}. {item.name}
+                        </span>
+                        <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                          {item.count}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-slate-500">No diagnosis data.</p>
+                  )}
+                </div>
+              </Card>
+
+              <Card className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+                <p className="text-sm font-semibold text-slate-800">Daily Snapshot</p>
+                <div className="mt-5 flex h-36 items-end justify-between gap-2">
+                  {miniBars.length ? (
+                    miniBars.map((bar) => (
+                      <div key={bar.label} className="flex flex-1 items-end justify-center gap-1">
+                        <div
+                          className="w-2 rounded-full bg-blue-500"
+                          style={{ height: `${Math.max(bar.patientsHeight, 6)}%` }}
+                        />
+                        <div
+                          className="w-2 rounded-full bg-emerald-500"
+                          style={{ height: `${Math.max(bar.prescriptionsHeight, 6)}%` }}
+                        />
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-slate-500">No bar data.</p>
+                  )}
+                </div>
+                <div className="mt-3 flex justify-between text-[10px] text-slate-500">
+                  {miniBars.map((bar) => (
+                    <span key={bar.label} className="truncate">
+                      {bar.label}
+                    </span>
+                  ))}
+                </div>
+              </Card>
             </div>
-          </Card>
-        </div>
-        
-        <div className="space-y-6">
-          <Card>
-            <h2 className="text-xl font-semibold text-gray-800 border-b border-gray-100 pb-4 mb-4">Top 5 Diagnoses</h2>
-            <div className="space-y-4">
-              {data?.topDiagnoses?.length > 0 ? data.topDiagnoses.map((diag: any, index: number) => (
-                <div key={index} className="flex items-center justify-between p-3 rounded-lg hover:bg-blue-50 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">
-                      {index + 1}
-                    </div>
-                    <span className="font-medium text-gray-700">{diag.name || diag.Name}</span>
-                  </div>
-                  <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-semibold">
-                    {diag.count || diag.Count}
+          </div>
+
+          <div className="space-y-4 xl:col-span-3">
+            <Card className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+              <p className="text-sm font-semibold text-slate-800">Activity</p>
+              <div className="mt-4 space-y-3">
+                <div className="rounded-2xl bg-gradient-to-r from-blue-500 to-sky-500 px-4 py-3 text-white">
+                  <p className="text-xs opacity-90">Patients in selected period</p>
+                  <p className="mt-1 text-2xl font-bold">{formatNumber(trendSummary.totalPatients)}</p>
+                </div>
+                <div className="rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-3 text-white">
+                  <p className="text-xs opacity-90">Prescriptions in selected period</p>
+                  <p className="mt-1 text-2xl font-bold">{formatNumber(trendSummary.totalPrescriptions)}</p>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+              <p className="text-sm font-semibold text-slate-800">Compare with previous period</p>
+              <div className="mt-4 space-y-3">
+                <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2">
+                  <span className="text-sm text-slate-600">Patients</span>
+                  <span
+                    className={`text-sm font-semibold ${
+                      compareDelta.patients >= 0 ? "text-emerald-600" : "text-rose-600"
+                    }`}
+                  >
+                    {compareDelta.patients >= 0 ? "+" : ""}
+                    {compareDelta.patients}
                   </span>
                 </div>
-              )) : (
-                <p className="text-sm text-gray-500 text-center py-4">No top diagnoses found.</p>
-              )}
-            </div>
-          </Card>
+                <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2">
+                  <span className="text-sm text-slate-600">Prescriptions</span>
+                  <span
+                    className={`text-sm font-semibold ${
+                      compareDelta.prescriptions >= 0 ? "text-emerald-600" : "text-rose-600"
+                    }`}
+                  >
+                    {compareDelta.prescriptions >= 0 ? "+" : ""}
+                    {compareDelta.prescriptions}
+                  </span>
+                </div>
+              </div>
+            </Card>
+          </div>
         </div>
       </div>
-
     </div>
   );
 }

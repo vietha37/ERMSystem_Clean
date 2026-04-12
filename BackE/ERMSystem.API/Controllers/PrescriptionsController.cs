@@ -78,6 +78,7 @@ namespace ERMSystem.API.Controllers
 
         // DELETE: api/prescriptions/{id}
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin,Receptionist")]
         public async Task<IActionResult> DeletePrescription(Guid id, CancellationToken ct)
         {
             try

@@ -3,18 +3,24 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { authService } from '@/services/authService';
+import { getApiErrorMessage } from '@/services/error';
+import { UserRole } from '@/services/types';
 import toast from 'react-hot-toast';
 
 export function useAuth() {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [role, setRole] = useState<UserRole | null>(null);
+  const [username, setUsername] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
     // Check initial auth status on mount
     const checkAuth = () => {
-      const authStatus = authService.isAuthenticated();
+      const authStatus = authService.isAuthenticated() && !authService.isTokenExpired();
       setIsAuthenticated(authStatus);
+      setRole(authStatus ? authService.getRole() : null);
+      setUsername(authStatus ? authService.getUsername() : null);
       setIsLoading(false);
     };
     checkAuth();
@@ -24,6 +30,8 @@ export function useAuth() {
     try {
       await authService.login(username, password);
       setIsAuthenticated(true);
+      setRole(authService.getRole());
+      setUsername(authService.getUsername());
       toast.success('Login successful!');
       
       // Additional remember me logic if needed
@@ -35,8 +43,8 @@ export function useAuth() {
 
       router.push('/dashboard');
       return { success: true };
-    } catch (error: any) {
-      const msg = error?.response?.data?.message || 'Invalid email or password';
+    } catch (error: unknown) {
+      const msg = getApiErrorMessage(error, 'Invalid username or password');
       toast.error(msg);
       return { success: false, error: msg };
     }
@@ -45,6 +53,8 @@ export function useAuth() {
   const logout = () => {
     authService.logout();
     setIsAuthenticated(false);
+    setRole(null);
+    setUsername(null);
     toast.success('Logged out successfully');
     router.push('/login');
   };
@@ -52,6 +62,8 @@ export function useAuth() {
   return {
     isAuthenticated,
     isLoading,
+    role,
+    username,
     login,
     logout,
   };

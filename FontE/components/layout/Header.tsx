@@ -1,35 +1,135 @@
 "use client";
 
-import React from 'react';
-import { useAuth } from '@/hooks/useAuth';
+import React, { useEffect, useMemo, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { notificationService } from "@/services/notificationService";
+import { AppointmentNotification } from "@/services/types";
+
+function formatTime(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "--:--";
+  return date.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", hour12: false });
+}
 
 export function Header() {
-  const { logout } = useAuth();
-  
+  const { logout, role, username, isAuthenticated } = useAuth();
+  const [notifications, setNotifications] = useState<AppointmentNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [isOpen, setIsOpen] = useState(false);
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
+
+    let isCancelled = false;
+    const fetchNotifications = async () => {
+      setIsLoadingNotifications(true);
+      try {
+        const data = await notificationService.getToday();
+        if (!isCancelled) {
+          setNotifications(data.notifications ?? []);
+          setUnreadCount(data.unreadCount ?? 0);
+        }
+      } catch {
+        if (!isCancelled) {
+          setNotifications([]);
+          setUnreadCount(0);
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsLoadingNotifications(false);
+        }
+      }
+    };
+
+    fetchNotifications();
+    const timer = setInterval(fetchNotifications, 30000);
+    return () => {
+      isCancelled = true;
+      clearInterval(timer);
+    };
+  }, [isAuthenticated, role]);
+
+  const title = useMemo(() => {
+    if (role === "Admin") return "Tat ca lich kham hom nay";
+    if (role === "Doctor") return "Lich kham cua ban hom nay";
+    return "Thong bao hom nay";
+  }, [role]);
+
   return (
     <header className="h-20 bg-white/90 backdrop-blur-md border-b border-gray-100 flex items-center justify-between px-8 shadow-sm transition-all duration-300">
       <div>
-        <h2 className="text-xl font-bold text-gray-800 tracking-tight">Welcome back, Dr. Smith</h2>
-        <p className="text-sm text-gray-500 font-medium">Have a great day at work!</p>
+        <h2 className="text-xl font-bold text-gray-800 tracking-tight">Welcome back</h2>
+        <p className="text-sm text-gray-500 font-medium">
+          {role ?? "User"} account{username ? ` - ${username}` : ""}
+        </p>
       </div>
       <div className="flex items-center gap-5">
-        <button 
+        <button
           onClick={logout}
           className="text-sm font-bold text-red-500 bg-red-50 hover:bg-red-100 hover:text-red-600 px-4 py-2 rounded-xl transition-colors shadow-sm"
         >
-          Logout 🚪
+          Logout
         </button>
-        <button className="p-2.5 rounded-full bg-gray-50 hover:bg-gray-100 relative text-gray-500 transition-colors shadow-sm">
-          <span className="text-xl">🔔</span>
-          <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-blue-500 rounded-full border-2 border-white animate-pulse"></span>
-        </button>
+
+        <div className="relative">
+          <button
+            onClick={() => setIsOpen((v) => !v)}
+            className="p-2.5 rounded-full bg-gray-50 hover:bg-gray-100 relative text-gray-500 transition-colors shadow-sm"
+            aria-label="Notifications"
+          >
+            <span className="text-xl">🔔</span>
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center border-2 border-white">
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            )}
+          </button>
+
+          {isOpen && (
+            <div className="absolute right-0 mt-2 w-[380px] max-h-[420px] overflow-auto rounded-2xl border border-gray-200 bg-white shadow-xl z-50">
+              <div className="sticky top-0 bg-white border-b border-gray-100 px-4 py-3">
+                <p className="text-sm font-bold text-gray-800">{title}</p>
+                <p className="text-xs text-gray-500">
+                  {unreadCount} thong bao
+                </p>
+              </div>
+
+              {isLoadingNotifications ? (
+                <div className="p-4 text-sm text-gray-500">Dang tai thong bao...</div>
+              ) : notifications.length === 0 ? (
+                <div className="p-4 text-sm text-gray-500">Khong co lich kham nao hom nay.</div>
+              ) : (
+                <ul className="divide-y divide-gray-100">
+                  {notifications.map((item) => (
+                    <li key={item.appointmentId} className="px-4 py-3 hover:bg-blue-50/60 transition-colors">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-semibold text-gray-800 truncate">{item.patientName}</p>
+                        <span className="text-xs font-bold text-blue-700">{formatTime(item.appointmentDate)}</span>
+                      </div>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Bac si: {item.doctorName}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1 truncate">{item.message}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+
         <div className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold shadow-md ring-2 ring-blue-50">
-            DS
+            {(role ?? "U").charAt(0)}
           </div>
           <div className="hidden md:block text-left">
-            <p className="text-sm font-bold text-gray-800 leading-tight">Dr. Smith</p>
-            <p className="text-[11px] text-blue-600 font-bold uppercase tracking-wider">Cardiologist</p>
+            <p className="text-sm font-bold text-gray-800 leading-tight">{role ?? "User"}</p>
+            <p className="text-[11px] text-blue-600 font-bold uppercase tracking-wider">Authenticated</p>
           </div>
         </div>
       </div>

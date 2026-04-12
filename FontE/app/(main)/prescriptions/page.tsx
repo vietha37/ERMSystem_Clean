@@ -10,28 +10,32 @@ import { medicineService } from '@/services/medicineService';
 import { appointmentService } from '@/services/appointmentService';
 import { patientService } from '@/services/patientService';
 import { doctorService } from '@/services/doctorService';
+import { getApiErrorMessage } from '@/services/error';
+import { useAuth } from '@/hooks/useAuth';
+import {
+  Appointment,
+  Doctor,
+  MedicalRecord,
+  Medicine,
+  Patient,
+  Prescription,
+} from '@/services/types';
 import toast from 'react-hot-toast';
 
-interface PrescriptionItem {
-  medicineId: any;
+interface PrescriptionFormItem {
+  medicineId: string;
   dosage: string;
   duration: string;
 }
 
-interface Prescription {
-  id: any;
-  medicalRecordId: any;
-  createdAt: string;
-  items?: PrescriptionItem[];
-}
-
 export default function PrescriptionsPage() {
+  const { role } = useAuth();
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
-  const [medicalRecords, setMedicalRecords] = useState<any[]>([]);
-  const [medicines, setMedicines] = useState<any[]>([]);
-  const [appointments, setAppointments] = useState<any[]>([]);
-  const [patients, setPatients] = useState<any[]>([]);
-  const [doctors, setDoctors] = useState<any[]>([]);
+  const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([]);
+  const [medicines, setMedicines] = useState<Medicine[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -48,7 +52,7 @@ export default function PrescriptionsPage() {
 
   // Form State
   const [selectedMedicalRecordId, setSelectedMedicalRecordId] = useState('');
-  const [prescriptionItems, setPrescriptionItems] = useState<PrescriptionItem[]>([
+  const [prescriptionItems, setPrescriptionItems] = useState<PrescriptionFormItem[]>([
     { medicineId: '', dosage: '', duration: '' }
   ]);
 
@@ -56,53 +60,22 @@ export default function PrescriptionsPage() {
     setIsLoading(true);
     try {
       const [pre, rec, med, app, pts, doc] = await Promise.all([
-        prescriptionService.getAll(1, 100).catch(() => ({ items: [] })),
-        medicalRecordService.getAll(1, 100).catch(() => ({ items: [] })),
-        medicineService.getAll(1, 100).catch(() => ({ items: [] })),
-        appointmentService.getAll(1, 100).catch(() => ({ items: [] })),
-        patientService.getAll(1, 100).catch(() => ({ items: [] })),
-        doctorService.getAll(1, 100).catch(() => ({ items: [] }))
+        prescriptionService.getAll(1, 100),
+        medicalRecordService.getAll(1, 100),
+        medicineService.getAll(1, 100),
+        appointmentService.getAll(1, 100),
+        patientService.getAll(1, 100),
+        doctorService.getAll(1, 100),
       ]);
 
-      const preItems = pre?.items || pre || [];
-      const recItems = rec?.items || rec || [];
-      const medItems = med?.items || med || [];
-      const appItems = app?.items || app || [];
-      const ptsItems = pts?.items || pts || [];
-      const docItems = doc?.items || doc || [];
-
-      // Mock setup if everything fails
-      if (!medItems.length && !preItems.length && !recItems.length) {
-        setMedicines([
-          { id: 1, name: 'Paracetamol 500mg' },
-          { id: 2, name: 'Amoxicillin 250mg' },
-          { id: 3, name: 'Lisinopril 10mg' }
-        ]);
-        setMedicalRecords([{ id: 10, appointmentId: 101, diagnosis: 'Common Cold', createdAt: new Date().toISOString() }]);
-        setAppointments([{ id: 101, patientId: 1, doctorId: 1, appointmentDate: new Date().toISOString() }]);
-        setPatients([{ id: 1, firstName: 'John', lastName: 'Doe' }]);
-        setDoctors([{ id: 1, firstName: 'Alice', lastName: 'Smith' }]);
-        setPrescriptions([
-          {
-            id: 1,
-            medicalRecordId: 10,
-            createdAt: new Date().toISOString(),
-            items: [
-              { medicineId: 1, dosage: '1 tablet 3x per day', duration: '5 days' },
-              { medicineId: 2, dosage: '1 capsule 2x per day', duration: '7 days' }
-            ]
-          }
-        ]);
-      } else {
-         setMedicines(medItems);
-         setMedicalRecords(recItems);
-         setAppointments(appItems);
-         setPatients(ptsItems);
-         setDoctors(docItems);
-         setPrescriptions(preItems);
-      }
-    } catch (error) {
-      toast.error("Failed to load prescriptions data.");
+      setMedicines(med.items);
+      setMedicalRecords(rec.items);
+      setAppointments(app.items);
+      setPatients(pts.items);
+      setDoctors(doc.items);
+      setPrescriptions(pre.items);
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, "Failed to load prescriptions data."));
     } finally {
       setIsLoading(false);
     }
@@ -113,11 +86,20 @@ export default function PrescriptionsPage() {
   }, []);
 
   // Helpers
-  const getRecord = (id: any) => medicalRecords.find(r => r.id == id);
-  const getAppt = (id: any) => appointments.find(a => a.id == id);
-  const getPatientName = (id: any) => { const p = patients.find(x => x.id == id); return p ? (p.fullName || `${p.firstName} ${p.lastName}`) : 'Unknown'; };
-  const getDoctorName = (id: any) => { const d = doctors.find(x => x.id == id); return d ? (d.fullName ? `Dr. ${d.fullName}` : `Dr. ${d.firstName} ${d.lastName}`) : 'Unknown'; };
-  const getMedicineName = (id: any) => { const m = medicines.find(x => x.id == id); return m ? m.name : 'Unknown'; };
+  const getRecord = (id: string) => medicalRecords.find(r => r.id === id);
+  const getAppt = (id: string) => appointments.find(a => a.id === id);
+  const getPatientName = (id: string) => {
+    const patient = patients.find((entry) => entry.id === id);
+    return patient ? patient.fullName : 'Unknown';
+  };
+  const getDoctorName = (id: string) => {
+    const doctor = doctors.find((entry) => entry.id === id);
+    return doctor ? `Dr. ${doctor.fullName}` : 'Unknown';
+  };
+  const getMedicineName = (id: string) => {
+    const medicine = medicines.find((entry) => entry.id === id);
+    return medicine ? medicine.name : 'Unknown';
+  };
 
   const handleAddMedicineRow = () => {
     setPrescriptionItems([...prescriptionItems, { medicineId: '', dosage: '', duration: '' }]);
@@ -129,7 +111,7 @@ export default function PrescriptionsPage() {
     setPrescriptionItems(updated);
   };
 
-  const updateMedicineRow = (index: number, field: keyof PrescriptionItem, value: any) => {
+  const updateMedicineRow = (index: number, field: keyof PrescriptionFormItem, value: string) => {
     const updated = [...prescriptionItems];
     updated[index] = { ...updated[index], [field]: value };
     setPrescriptionItems(updated);
@@ -154,16 +136,18 @@ export default function PrescriptionsPage() {
       const payload = { medicalRecordId: selectedMedicalRecordId };
       const createdPrescription = await prescriptionService.create(payload);
 
-      const resolvedPrescriptionId = createdPrescription?.id || Math.floor(Math.random() * 10000);
+      const resolvedPrescriptionId = createdPrescription.id;
 
       // Add each medicine independently (matching api-spec POST /prescriptions/add-medicine)
       const requests = validItems.map(item => {
-        return prescriptionService.addMedicine({
-          prescriptionId: resolvedPrescriptionId,
+        return prescriptionService.addMedicine(
+          resolvedPrescriptionId,
+          {
           medicineId: item.medicineId,
           dosage: item.dosage,
           duration: item.duration
-        });
+          }
+        );
       });
       await Promise.all(requests);
 
@@ -174,49 +158,25 @@ export default function PrescriptionsPage() {
       // Reset defaults
       setSelectedMedicalRecordId('');
       setPrescriptionItems([{ medicineId: '', dosage: '', duration: '' }]);
-    } catch (error: any) {
-      if (error.code === 'ERR_NETWORK') {
-         toast.success('Prescription and medicines created (mock).');
-         setIsCreateModalOpen(false);
-         setPrescriptions(prev => [...prev, {
-            id: Math.floor(Math.random() * 10000),
-            medicalRecordId: selectedMedicalRecordId,
-            createdAt: new Date().toISOString(),
-            items: validItems
-         }]);
-      } else {
-         let msg = 'Failed to save prescription.';
-         if (error.response?.data) {
-           if (typeof error.response.data === 'string') {
-             msg = error.response.data;
-           } else if (error.response.data.title && error.response.data.errors) {
-             msg = Object.values(error.response.data.errors).flat().join(' ');
-           } else if (error.response.data.message) {
-             msg = error.response.data.message;
-           } else if (error.response.data.title) {
-             msg = error.response.data.title;
-           }
-         }
-         toast.error(msg);
-      }
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Failed to save prescription.'));
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
+    if (role === "Doctor") {
+      toast.error("Doctor khong co quyen xoa don thuoc.");
+      return;
+    }
     if (!confirm('Are you sure you want to delete this prescription history?')) return;
     try {
       await prescriptionService.delete(id);
       toast.success('Prescription deleted.');
       fetchData();
-    } catch (error: any) {
-      if (error.code === 'ERR_NETWORK') {
-         setPrescriptions(prev => prev.filter(r => r.id !== id));
-         toast.success('Prescription deleted (mock).');
-      } else {
-         toast.error('Failed to delete prescription.');
-      }
+    } catch {
+      toast.error('Failed to delete prescription.');
     }
   };
 
@@ -292,12 +252,14 @@ export default function PrescriptionsPage() {
                           >
                             View
                           </button>
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); handleDelete(rx.id); }}
-                            className="text-red-500 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded-lg transition-colors text-xs font-medium border border-red-200"
-                          >
-                            Delete
-                          </button>
+                          {role !== "Doctor" && (
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); handleDelete(rx.id); }}
+                              className="text-red-500 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded-lg transition-colors text-xs font-medium border border-red-200"
+                            >
+                              Delete
+                            </button>
+                          )}
                         </td>
                       </tr>
                     )})
@@ -335,7 +297,7 @@ export default function PrescriptionsPage() {
               required
             >
               <option value="">-- Choose Diagnosis Basis --</option>
-              {medicalRecords.filter(r => !prescriptions.some(p => p.medicalRecordId == r.id)).map(r => {
+              {medicalRecords.filter(r => !prescriptions.some(p => p.medicalRecordId === r.id)).map(r => {
                 const associatedAppt = getAppt(r.appointmentId);
                 return (
                  <option key={r.id} value={r.id}>
@@ -460,8 +422,8 @@ export default function PrescriptionsPage() {
                        {(!selectedPrescription.items || selectedPrescription.items.length === 0) ? (
                          <tr><td colSpan={3} className="p-4 text-center text-gray-500">No medicines attached.</td></tr>
                        ) : (
-                         selectedPrescription.items.map((m, idx) => (
-                           <tr key={idx} className="hover:bg-blue-50/50">
+                          selectedPrescription.items.map((m) => (
+                            <tr key={m.id} className="hover:bg-blue-50/50">
                              <td className="p-3 font-medium text-gray-800">💊 {getMedicineName(m.medicineId)}</td>
                              <td className="p-3 text-gray-600">{m.dosage}</td>
                              <td className="p-3 text-blue-600 bg-blue-50/40">{m.duration}</td>

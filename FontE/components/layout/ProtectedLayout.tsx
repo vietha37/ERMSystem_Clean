@@ -1,24 +1,47 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { authService } from '@/services/authService';
+import { UserRole } from '@/services/types';
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [authorized, setAuthorized] = useState(false);
 
   useEffect(() => {
     const checkAuth = () => {
-      if (!authService.isAuthenticated()) {
+      const isAuth = authService.isAuthenticated() && !authService.isTokenExpired();
+      const role = authService.getRole();
+
+      if (!isAuth || !role) {
+        authService.logout();
         router.push('/login');
-      } else {
-        setAuthorized(true);
+        return;
       }
+
+      const allowedRoutesByRole: Record<UserRole, string[]> = {
+        Admin: ['/dashboard', '/patients', '/appointments', '/medical-records', '/prescriptions'],
+        Doctor: ['/dashboard', '/patients', '/appointments', '/medical-records', '/prescriptions'],
+        Receptionist: ['/dashboard', '/patients', '/appointments'],
+      };
+
+      const allowedRoutes = allowedRoutesByRole[role];
+      const isAllowed = allowedRoutes.some(
+        (route) => pathname === route || pathname.startsWith(`${route}/`)
+      );
+
+      if (!isAllowed) {
+        router.push('/dashboard');
+        return;
+      }
+
+      setAuthorized(true);
     };
     
     checkAuth();
-  }, [router]);
+  }, [pathname, router]);
 
   if (!authorized) {
     return (

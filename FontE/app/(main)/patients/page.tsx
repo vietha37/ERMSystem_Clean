@@ -1,26 +1,30 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { patientService } from '@/services/patientService';
 import { appointmentService } from '@/services/appointmentService';
 import { medicalRecordService } from '@/services/medicalRecordService';
+import { getApiErrorMessage } from '@/services/error';
+import { useAuth } from '@/hooks/useAuth';
+import { Appointment, MedicalRecord, Patient } from '@/services/types';
 import toast from 'react-hot-toast';
 
-interface Patient {
-  id: number;
-  fullName: string;
-  dateOfBirth: string;
-  gender: string;
-  phone: string;
-  address: string;
+type PatientViewModel = Patient & {
   status?: string;
-}
+};
+
+type DrawerData = {
+  appointments: Appointment[];
+  medicalRecords: MedicalRecord[];
+  isLoading: boolean;
+};
 
 export default function PatientsPage() {
-  const [patients, setPatients] = useState<Patient[]>([]);
+  const { role } = useAuth();
+  const [patients, setPatients] = useState<PatientViewModel[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -35,13 +39,13 @@ export default function PatientsPage() {
   // Form Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
-  const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
+  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const firstInputRef = useRef<HTMLInputElement>(null);
 
   // Detail Drawer State
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
-  const [drawerData, setDrawerData] = useState<any>({
+  const [selectedPatient, setSelectedPatient] = useState<PatientViewModel | null>(null);
+  const [drawerData, setDrawerData] = useState<DrawerData>({
      appointments: [],
      medicalRecords: [],
      isLoading: false
@@ -72,46 +76,31 @@ export default function PatientsPage() {
   }, [isModalOpen]);
 
   // Main Fetch
-  const fetchPatients = async () => {
+  const fetchPatients = useCallback(async () => {
     setIsLoading(true);
     try {
-      const data = await patientService.getAll(currentPage, pageSize, debouncedSearch).catch(() => null);
-      if (!data) {
-        setPatients([]);
-        setTotalPages(1);
-        setTotalItems(0);
-        return;
-      }
+      const data = await patientService.getAll(currentPage, pageSize, debouncedSearch);
+      const mapped: PatientViewModel[] = data.items.map((p) => ({
+        ...p,
+        status: "Active",
+      }));
 
-      if (data && data.items) {
-        // Assume active status for UI demonstration if not present
-        const mapped = data.items.map((p: any) => ({ ...p, status: p.status || 'Active' }));
-        setPatients(mapped);
-        setTotalPages(Math.ceil(data.totalCount / pageSize) || 1);
-        setTotalItems(data.totalCount || 0);
-      } else if (Array.isArray(data)) {
-        let filtered = data;
-        if (debouncedSearch) {
-          filtered = data.filter((p: any) =>
-            (p.fullName ?? '').toLowerCase().includes(debouncedSearch.toLowerCase())
-          );
-        }
-        const mapped = filtered.map((p: any) => ({ ...p, status: p.status || 'Active' }));
-        setTotalItems(mapped.length);
-        setTotalPages(Math.ceil(mapped.length / pageSize) || 1);
-        setPatients(mapped.slice((currentPage - 1) * pageSize, currentPage * pageSize));
-      }
-    } catch (error) {
-      toast.error("Failed to load patients.");
+      setPatients(mapped);
+      setTotalPages(Math.ceil((data?.totalCount || 0) / pageSize) || 1);
+      setTotalItems(data?.totalCount || 0);
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, "Failed to load patients."));
+      setPatients([]);
+      setTotalPages(1);
+      setTotalItems(0);
     } finally {
-      // Simulate slight delay to show off beautiful skeletons if data is too fast locally
-      setTimeout(() => setIsLoading(false), 300);
+      setIsLoading(false);
     }
-  };
+  }, [currentPage, pageSize, debouncedSearch]);
 
   useEffect(() => {
     fetchPatients();
-  }, [currentPage, pageSize, debouncedSearch]);
+  }, [fetchPatients]);
 
   const openCreateModal = () => {
     setModalMode('create');
@@ -121,7 +110,7 @@ export default function PatientsPage() {
     setIsModalOpen(true);
   };
 
-  const openEditModal = (patient: Patient, e: React.MouseEvent) => {
+  const openEditModal = (patient: PatientViewModel, e: React.MouseEvent) => {
     e.stopPropagation(); // prevent drawer open
     setModalMode('edit');
     setSelectedPatientId(patient.id);
@@ -150,52 +139,33 @@ export default function PatientsPage() {
 
     try {
       if (modalMode === 'create') {
-        try {
-          await patientService.create(payload);
-          toast.success("Patient created successfully.");
-          setIsModalOpen(false);
-          fetchPatients();
-        } catch (err: any) {
-          if (err.code === 'ERR_NETWORK') {
-            setPatients(prev => [{ id: Math.floor(Math.random() * 10000), status: 'Active', ...payload } as any, ...prev].slice(0, pageSize));
-            setTotalItems(prev => prev + 1);
-            toast.success("Patient created (mock mode).");
-            setIsModalOpen(false);
-          } else throw err;
-        }
+        await patientService.create(payload);
+        toast.success("Patient created successfully.");
+        setIsModalOpen(false);
+        fetchPatients();
       } else {
         if (!selectedPatientId) return;
-        try {
-          await patientService.update(selectedPatientId, { ...payload, id: selectedPatientId });
-          toast.success("Patient updated successfully.");
-          setIsModalOpen(false);
-          fetchPatients();
-          // Update drawer if open
-          if (selectedPatient?.id === selectedPatientId) {
-             setSelectedPatient({ ...selectedPatient, ...payload });
-          }
-        } catch (err: any) {
-          if (err.code === 'ERR_NETWORK') {
-            setPatients(prev => prev.map(p => p.id === selectedPatientId ? { ...p, ...payload } as any : p));
-            toast.success("Patient updated (mock mode).");
-            setIsModalOpen(false);
-            if (selectedPatient?.id === selectedPatientId) {
-               setSelectedPatient({ ...selectedPatient, ...payload });
-            }
-          } else throw err;
+        await patientService.update(selectedPatientId, payload);
+        toast.success("Patient updated successfully.");
+        setIsModalOpen(false);
+        fetchPatients();
+        if (selectedPatient?.id === selectedPatientId) {
+          setSelectedPatient({ ...selectedPatient, ...payload });
         }
       }
-    } catch (error: any) {
-      console.error(error);
-      const serverMsg = error?.response?.data?.message || error?.response?.data || "";
-      toast.error(typeof serverMsg === 'string' && serverMsg ? serverMsg : "Failed to process request.");
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, "Failed to process request."));
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDelete = async (id: number, e: React.MouseEvent) => {
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (role === "Doctor") {
+      toast.error("Doctor khong co quyen xoa benh nhan.");
+      return;
+    }
     if (!window.confirm("Are you sure you want to delete this patient? This action cannot be undone.")) return;
     
     try {
@@ -205,47 +175,28 @@ export default function PatientsPage() {
       else fetchPatients();
       
       if (selectedPatient?.id === id) setIsDrawerOpen(false);
-    } catch (error: any) {
-      if (error.code === 'ERR_NETWORK') {
-        setPatients(prev => prev.filter(p => p.id !== id));
-        setTotalItems(prev => Math.max(0, prev - 1));
-        toast.success("Patient deleted (mock mode).");
-        if (selectedPatient?.id === id) setIsDrawerOpen(false);
-        if (patients.length === 1 && currentPage > 1) setCurrentPage(currentPage - 1);
-      } else {
-        toast.error("Failed to delete patient.");
-      }
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, "Failed to delete patient."));
     }
   };
 
   // Drawer Logic
-  const openDrawer = async (patient: Patient) => {
+  const openDrawer = async (patient: PatientViewModel) => {
     setSelectedPatient(patient);
     setIsDrawerOpen(true);
     setDrawerData({ appointments: [], medicalRecords: [], isLoading: true });
     
     try {
-       // Parallel fetch to populate Drawer Medical Summary
-       const [appts, recs]: any = await Promise.all([
-          appointmentService.getAll(1, 50).catch(() => ({ items: [] })),
-          medicalRecordService.getAll(1, 10).catch(() => ({ items: [] }))
+       const [apptsRes, recsRes] = await Promise.all([
+          appointmentService.getAll(1, 200),
+          medicalRecordService.getAll(1, 200)
        ]);
        
-       let patientAppts = appts?.items || appts || [];
-       let patientRecs = recs?.items || recs || [];
-
-       // Mock data if backend is completely empty or offline
-       if (patientAppts.length === 0) {
-           patientAppts = [
-             { id: 101, appointmentDate: new Date().toISOString(), status: 'Completed', doctorName: 'Dr. Alice Smith' },
-             { id: 102, appointmentDate: new Date(Date.now() + 86400000).toISOString(), status: 'Pending', doctorName: 'Dr. Bob Jones' }
-           ];
-       }
-       if (patientRecs.length === 0) {
-           patientRecs = [
-             { id: 1, diagnosis: 'Common Cold', createdAt: new Date().toISOString() }
-           ];
-       }
+       const allAppointments = apptsRes.items;
+       const allRecords = recsRes.items;
+       const patientAppts = allAppointments.filter((a) => a.patientId === patient.id);
+       const appointmentIds = new Set(patientAppts.map((a) => a.id));
+       const patientRecs = allRecords.filter((r) => appointmentIds.has(r.appointmentId));
        
        setDrawerData({
          appointments: patientAppts.slice(0, 3), // top 3
@@ -395,13 +346,15 @@ export default function PatientsPage() {
                           >
                             Edit
                           </button>
-                          <button
-                            onClick={(e) => handleDelete(patient.id, e)}
-                            className="bg-white border border-red-100 text-red-500 hover:bg-red-500 hover:text-white hover:border-red-600 px-3 py-1.5 rounded-lg transition-colors text-sm font-semibold shadow-sm"
-                            title="Delete Patient"
-                          >
-                            Delete
-                          </button>
+                          {role !== "Doctor" && (
+                            <button
+                              onClick={(e) => handleDelete(patient.id, e)}
+                              className="bg-white border border-red-100 text-red-500 hover:bg-red-500 hover:text-white hover:border-red-600 px-3 py-1.5 rounded-lg transition-colors text-sm font-semibold shadow-sm"
+                              title="Delete Patient"
+                            >
+                              Delete
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))
@@ -552,10 +505,10 @@ export default function PatientsPage() {
                          ) : drawerData.appointments.length === 0 ? (
                            <tr><td colSpan={3} className="px-4 py-6 text-center text-sm text-gray-400">No appointments found.</td></tr>
                          ) : (
-                           drawerData.appointments.map((a: any, i: number) => (
-                             <tr key={i} className="hover:bg-blue-50/30 transition-colors">
-                                <td className="px-4 py-3 text-gray-600 font-medium">{new Date(a.appointmentDate).toLocaleDateString()}</td>
-                                <td className="px-4 py-3 font-semibold text-gray-800">{a.doctorName || 'Assigned Doctor'}</td>
+                            drawerData.appointments.map((a) => (
+                              <tr key={a.id} className="hover:bg-blue-50/30 transition-colors">
+                                 <td className="px-4 py-3 text-gray-600 font-medium">{new Date(a.appointmentDate).toLocaleDateString()}</td>
+                                 <td className="px-4 py-3 font-semibold text-gray-800">Assigned Doctor</td>
                                 <td className="px-4 py-3">
                                   <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
                                     a.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'

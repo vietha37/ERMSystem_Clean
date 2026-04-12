@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -33,6 +34,18 @@ namespace ERMSystem.Infrastructure.Repositories
 
         public async Task<int> GetTotalCountAsync(CancellationToken ct = default)
             => await _context.Patients.CountAsync(ct);
+
+        public async Task<Dictionary<DateTime, int>> GetCreatedCountByDayAsync(
+            DateTime fromUtc,
+            CancellationToken ct = default)
+        {
+            return await _context.Patients
+                .AsNoTracking()
+                .Where(p => p.CreatedAt >= fromUtc)
+                .GroupBy(p => p.CreatedAt.Date)
+                .Select(g => new { Date = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Date, x => x.Count, ct);
+        }
 
         public async Task<Patient?> GetByIdAsync(Guid id, CancellationToken ct = default)
             => await _context.Patients.FindAsync(new object[] { id }, ct);

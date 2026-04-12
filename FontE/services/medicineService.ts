@@ -1,24 +1,37 @@
-import api from './api';
+import api from "./api";
+import {
+  CreateMedicinePayload,
+  Medicine,
+  PaginatedResult,
+  UpdateMedicinePayload,
+} from "./types";
 
 export const medicineService = {
-  getAll: async (pageNumber = 1, pageSize = 100) => {
-    const response = await api.get(`/medicines?pageNumber=${pageNumber}&pageSize=${pageSize}`);
+  getAll: async (
+    pageNumber = 1,
+    pageSize = 100
+  ): Promise<PaginatedResult<Medicine>> => {
+    const response = await api.get<PaginatedResult<Medicine>>(
+      `/medicines?pageNumber=${pageNumber}&pageSize=${pageSize}`
+    );
     return response.data;
   },
-  getById: async (id: string | number) => {
-    const response = await api.get(`/medicines/${id}`);
+
+  getById: async (id: string): Promise<Medicine> => {
+    const response = await api.get<Medicine>(`/medicines/${id}`);
     return response.data;
   },
-  create: async (data: any) => {
-    const response = await api.post('/medicines', data);
+
+  create: async (data: CreateMedicinePayload): Promise<Medicine> => {
+    const response = await api.post<Medicine>("/medicines", data);
     return response.data;
   },
-  update: async (id: string | number, data: any) => {
-    const response = await api.put(`/medicines/${id}`, data);
-    return response.data;
+
+  update: async (id: string, data: UpdateMedicinePayload): Promise<void> => {
+    await api.put(`/medicines/${id}`, data);
   },
-  delete: async (id: string | number) => {
-    const response = await api.delete(`/medicines/${id}`);
-    return response.data;
-  }
+
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/medicines/${id}`);
+  },
 };

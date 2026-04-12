@@ -53,6 +53,7 @@ namespace ERMSystem.Application.Services
             {
                 Id = Guid.NewGuid(),
                 AppointmentId = dto.AppointmentId,
+                CreatedAt = DateTime.UtcNow,
                 Symptoms = dto.Symptoms,
                 Diagnosis = dto.Diagnosis,
                 Notes = dto.Notes
@@ -88,6 +89,7 @@ namespace ERMSystem.Application.Services
         {
             Id = r.Id,
             AppointmentId = r.AppointmentId,
+            CreatedAt = r.CreatedAt,
             Symptoms = r.Symptoms,
             Diagnosis = r.Diagnosis,
             Notes = r.Notes

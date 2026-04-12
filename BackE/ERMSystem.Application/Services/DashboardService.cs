@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using ERMSystem.Application.DTOs;
@@ -10,59 +13,224 @@ namespace ERMSystem.Application.Services
         private readonly IPatientRepository _patientRepository;
         private readonly IAppointmentRepository _appointmentRepository;
         private readonly IMedicalRecordRepository _medicalRecordRepository;
+        private readonly IPrescriptionRepository _prescriptionRepository;
 
         public DashboardService(
             IPatientRepository patientRepository,
             IAppointmentRepository appointmentRepository,
-            IMedicalRecordRepository medicalRecordRepository)
+            IMedicalRecordRepository medicalRecordRepository,
+            IPrescriptionRepository prescriptionRepository)
         {
             _patientRepository = patientRepository;
             _appointmentRepository = appointmentRepository;
             _medicalRecordRepository = medicalRecordRepository;
+            _prescriptionRepository = prescriptionRepository;
         }
 
-        // public async Task<DashboardStatsDto> GetDashboardStatsAsync(CancellationToken ct = default)
-        // {
-        //     var patientsTask = _patientRepository.GetTotalCountAsync(ct);
-        //     var todayAppointmentsTask = _appointmentRepository.GetAppointmentsTodayCountAsync(ct);
-        //     var completedAppointmentsTask = _appointmentRepository.GetCompletedAppointmentsCountAsync(ct);
-        //     var topDiagnosesTask = _medicalRecordRepository.GetTopDiagnosesAsync(5, ct);
-
-        //     await Task.WhenAll(
-        //         patientsTask,
-        //         todayAppointmentsTask,
-        //         completedAppointmentsTask,
-        //         topDiagnosesTask
-        //     );
-
-        //     return new DashboardStatsDto
-        //     {
-        //         TotalPatients = await patientsTask,
-        //         AppointmentsToday = await todayAppointmentsTask,
-        //         CompletedAppointments = await completedAppointmentsTask,
-        //         TopDiagnoses = await topDiagnosesTask
-        //     };
-        // }
         public async Task<DashboardStatsDto> GetDashboardStatsAsync(CancellationToken ct = default)
-{
-    // Chúng ta không khởi tạo Task trước nữa mà await trực tiếp từng dòng
-    // Điều này đảm bảo mỗi truy vấn kết thúc hoàn toàn trước khi truy vấn tiếp theo bắt đầu
-    
-    var patientsCount = await _patientRepository.GetTotalCountAsync(ct);
-    
-    var todayAppointmentsCount = await _appointmentRepository.GetAppointmentsTodayCountAsync(ct);
-    
-    var completedAppointmentsCount = await _appointmentRepository.GetCompletedAppointmentsCountAsync(ct);
-    
-    var topDiagnoses = await _medicalRecordRepository.GetTopDiagnosesAsync(5, ct);
+        {
+            var patientsCount = await _patientRepository.GetTotalCountAsync(ct);
+            var todayAppointmentsCount = await _appointmentRepository.GetAppointmentsTodayCountAsync(ct);
+            var completedAppointmentsCount = await _appointmentRepository.GetCompletedAppointmentsCountAsync(ct);
+            var topDiagnoses = await _medicalRecordRepository.GetTopDiagnosesAsync(5, ct);
 
-    return new DashboardStatsDto 
-    {
-        TotalPatients = patientsCount,
-        AppointmentsToday = todayAppointmentsCount,
-        CompletedAppointments = completedAppointmentsCount,
-        TopDiagnoses = topDiagnoses
-    };
-}
+            return new DashboardStatsDto
+            {
+                TotalPatients = patientsCount,
+                AppointmentsToday = todayAppointmentsCount,
+                CompletedAppointments = completedAppointmentsCount,
+                TopDiagnoses = topDiagnoses
+            };
+        }
+
+        public async Task<DashboardTrendsDto> GetDashboardTrendsAsync(
+            string period,
+            DateTime? fromDate = null,
+            DateTime? toDate = null,
+            CancellationToken ct = default)
+        {
+            var normalizedPeriod = string.Equals(period, "monthly", StringComparison.OrdinalIgnoreCase)
+                ? "monthly"
+                : "daily";
+
+            if (normalizedPeriod == "monthly")
+            {
+                return await BuildMonthlyTrendsAsync(fromDate, toDate, ct);
+            }
+
+            return await BuildDailyTrendsAsync(fromDate, toDate, ct);
+        }
+
+        private async Task<DashboardTrendsDto> BuildDailyTrendsAsync(
+            DateTime? fromDate,
+            DateTime? toDate,
+            CancellationToken ct)
+        {
+            var today = DateTime.UtcNow.Date;
+            var effectiveTo = (toDate ?? today).Date;
+            var effectiveFrom = (fromDate ?? effectiveTo.AddDays(-29)).Date;
+
+            if (effectiveFrom > effectiveTo)
+            {
+                (effectiveFrom, effectiveTo) = (effectiveTo, effectiveFrom);
+            }
+
+            var dayCount = (effectiveTo - effectiveFrom).Days + 1;
+            if (dayCount > 366)
+            {
+                effectiveFrom = effectiveTo.AddDays(-365);
+                dayCount = 366;
+            }
+
+            var previousFrom = effectiveFrom.AddDays(-dayCount);
+            var previousTo = effectiveFrom.AddDays(-1);
+
+            var patientMap = await _patientRepository.GetCreatedCountByDayAsync(previousFrom, ct);
+            var prescriptionMap = await _prescriptionRepository.GetCreatedCountByDayAsync(previousFrom, ct);
+
+            var points = new List<DashboardTrendPointDto>(dayCount);
+            for (var i = 0; i < dayCount; i++)
+            {
+                var date = effectiveFrom.AddDays(i);
+                patientMap.TryGetValue(date, out var patients);
+                prescriptionMap.TryGetValue(date, out var prescriptions);
+
+                points.Add(new DashboardTrendPointDto
+                {
+                    Label = date.ToString("dd/MM"),
+                    PatientsCount = patients,
+                    PrescriptionsCount = prescriptions
+                });
+            }
+
+            var currentPatientsTotal = points.Sum(x => x.PatientsCount);
+            var currentPrescriptionsTotal = points.Sum(x => x.PrescriptionsCount);
+            var previousPatientsTotal = SumByRange(patientMap, previousFrom, previousTo);
+            var previousPrescriptionsTotal = SumByRange(prescriptionMap, previousFrom, previousTo);
+
+            return new DashboardTrendsDto
+            {
+                Period = "daily",
+                FromDate = effectiveFrom,
+                ToDate = effectiveTo,
+                CurrentPatientsTotal = currentPatientsTotal,
+                CurrentPrescriptionsTotal = currentPrescriptionsTotal,
+                PreviousPatientsTotal = previousPatientsTotal,
+                PreviousPrescriptionsTotal = previousPrescriptionsTotal,
+                Points = points
+            };
+        }
+
+        private async Task<DashboardTrendsDto> BuildMonthlyTrendsAsync(
+            DateTime? fromDate,
+            DateTime? toDate,
+            CancellationToken ct)
+        {
+            var now = DateTime.UtcNow.Date;
+            var defaultTo = new DateTime(now.Year, now.Month, 1);
+            var effectiveTo = new DateTime((toDate ?? defaultTo).Year, (toDate ?? defaultTo).Month, 1);
+            var fromSource = fromDate ?? defaultTo.AddMonths(-11);
+            var effectiveFrom = new DateTime(fromSource.Year, fromSource.Month, 1);
+
+            if (effectiveFrom > effectiveTo)
+            {
+                (effectiveFrom, effectiveTo) = (effectiveTo, effectiveFrom);
+            }
+
+            var monthCount = ((effectiveTo.Year - effectiveFrom.Year) * 12) + effectiveTo.Month - effectiveFrom.Month + 1;
+            if (monthCount > 24)
+            {
+                effectiveFrom = effectiveTo.AddMonths(-23);
+                monthCount = 24;
+            }
+
+            var previousFrom = effectiveFrom.AddMonths(-monthCount);
+            var previousTo = effectiveFrom.AddMonths(-1);
+
+            var patientDailyMap = await _patientRepository.GetCreatedCountByDayAsync(previousFrom, ct);
+            var prescriptionDailyMap = await _prescriptionRepository.GetCreatedCountByDayAsync(previousFrom, ct);
+
+            var patientMonthlyMap = GroupByMonth(patientDailyMap);
+            var prescriptionMonthlyMap = GroupByMonth(prescriptionDailyMap);
+
+            var points = new List<DashboardTrendPointDto>(monthCount);
+            for (var i = 0; i < monthCount; i++)
+            {
+                var month = effectiveFrom.AddMonths(i);
+                patientMonthlyMap.TryGetValue(month, out var patients);
+                prescriptionMonthlyMap.TryGetValue(month, out var prescriptions);
+
+                points.Add(new DashboardTrendPointDto
+                {
+                    Label = month.ToString("MM/yyyy"),
+                    PatientsCount = patients,
+                    PrescriptionsCount = prescriptions
+                });
+            }
+
+            var currentPatientsTotal = points.Sum(x => x.PatientsCount);
+            var currentPrescriptionsTotal = points.Sum(x => x.PrescriptionsCount);
+            var previousPatientsTotal = SumByMonthRange(patientMonthlyMap, previousFrom, previousTo);
+            var previousPrescriptionsTotal = SumByMonthRange(prescriptionMonthlyMap, previousFrom, previousTo);
+
+            return new DashboardTrendsDto
+            {
+                Period = "monthly",
+                FromDate = effectiveFrom,
+                ToDate = effectiveTo,
+                CurrentPatientsTotal = currentPatientsTotal,
+                CurrentPrescriptionsTotal = currentPrescriptionsTotal,
+                PreviousPatientsTotal = previousPatientsTotal,
+                PreviousPrescriptionsTotal = previousPrescriptionsTotal,
+                Points = points
+            };
+        }
+
+        private static Dictionary<DateTime, int> GroupByMonth(Dictionary<DateTime, int> dailyMap)
+        {
+            return dailyMap
+                .GroupBy(x => new DateTime(x.Key.Year, x.Key.Month, 1))
+                .ToDictionary(g => g.Key, g => g.Sum(x => x.Value));
+        }
+
+        private static int SumByRange(Dictionary<DateTime, int> map, DateTime from, DateTime to)
+        {
+            if (from > to)
+            {
+                return 0;
+            }
+
+            var sum = 0;
+            for (var d = from.Date; d <= to.Date; d = d.AddDays(1))
+            {
+                if (map.TryGetValue(d, out var value))
+                {
+                    sum += value;
+                }
+            }
+
+            return sum;
+        }
+
+        private static int SumByMonthRange(Dictionary<DateTime, int> map, DateTime fromMonth, DateTime toMonth)
+        {
+            if (fromMonth > toMonth)
+            {
+                return 0;
+            }
+
+            var sum = 0;
+            for (var m = new DateTime(fromMonth.Year, fromMonth.Month, 1);
+                 m <= new DateTime(toMonth.Year, toMonth.Month, 1);
+                 m = m.AddMonths(1))
+            {
+                if (map.TryGetValue(m, out var value))
+                {
+                    sum += value;
+                }
+            }
+
+            return sum;
+        }
     }
 }

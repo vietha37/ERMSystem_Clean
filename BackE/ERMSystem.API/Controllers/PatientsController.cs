@@ -72,6 +72,7 @@ namespace ERMSystem.API.Controllers
 
         // DELETE: api/patients/{id}
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin,Receptionist")]
         public async Task<IActionResult> DeletePatient(Guid id, CancellationToken ct)
         {
             try

@@ -49,6 +49,14 @@ namespace ERMSystem.Infrastructure.Repositories
                 .Where(a => a.Status == "Completed")
                 .CountAsync(ct);
 
+        public async Task<List<Appointment>> GetByDateRangeAsync(DateTime fromUtc, DateTime toUtc, CancellationToken ct = default)
+            => await _context.Appointments
+                .Include(a => a.Patient)
+                .Include(a => a.Doctor)
+                .Where(a => a.AppointmentDate >= fromUtc && a.AppointmentDate <= toUtc)
+                .OrderBy(a => a.AppointmentDate)
+                .ToListAsync(ct);
+
         public async Task<Appointment?> GetByIdAsync(Guid id, CancellationToken ct = default)
             => await _context.Appointments
                 .Include(a => a.Patient)
