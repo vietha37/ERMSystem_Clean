@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ERMSystem.Application.DTOs
 {
-    public class LoginDto
+    public class CreateAdminUserDto
     {
         [Required]
         [MinLength(3)]
@@ -11,5 +11,10 @@ namespace ERMSystem.Application.DTOs
         [Required]
         [MinLength(6)]
         public string Password { get; set; } = string.Empty;
+
+        [Required]
+        [RegularExpression("^(Doctor|Receptionist)$",
+            ErrorMessage = "Role must be Doctor or Receptionist.")]
+        public string Role { get; set; } = string.Empty;
     }
 }

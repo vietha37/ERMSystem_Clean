@@ -16,5 +16,14 @@ namespace ERMSystem.Application.DTOs.Common
             get => _pageSize;
             set => _pageSize = (value > MaxPageSize) ? MaxPageSize : value;
         }
+
+        public string? TextSearch { get; set; }
+
+        // Backward-compatible alias for clients that send "textSeach".
+        public string? TextSeach
+        {
+            get => TextSearch;
+            set => TextSearch = value;
+        }
     }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { notificationService } from "@/services/notificationService";
 import { AppointmentNotification } from "@/services/types";
@@ -11,12 +11,45 @@ function formatTime(value: string): string {
   return date.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
+function computeUnreadCount(
+  items: AppointmentNotification[],
+  fallbackUnread: number,
+  viewedAt: number
+): number {
+  if (viewedAt <= 0) return fallbackUnread;
+
+  const unseenByTime = items.filter((item) => {
+    const t = new Date(item.appointmentDate).getTime();
+    return Number.isFinite(t) && t > viewedAt;
+  }).length;
+
+  return unseenByTime;
+}
+
 export function Header() {
   const { logout, role, username, isAuthenticated } = useAuth();
   const [notifications, setNotifications] = useState<AppointmentNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
+  const [lastViewedAt, setLastViewedAt] = useState<number>(0);
+  const notificationRef = useRef<HTMLDivElement>(null);
+
+  const storageKey = useMemo(
+    () => `emr_notifications_seen_at_${username ?? "anonymous"}`,
+    [username]
+  );
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setLastViewedAt(0);
+      return;
+    }
+
+    const raw = typeof window !== "undefined" ? window.localStorage.getItem(storageKey) : null;
+    const parsed = raw ? Number(raw) : 0;
+    setLastViewedAt(Number.isFinite(parsed) ? parsed : 0);
+  }, [isAuthenticated, storageKey]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -31,8 +64,11 @@ export function Header() {
       try {
         const data = await notificationService.getToday();
         if (!isCancelled) {
-          setNotifications(data.notifications ?? []);
-          setUnreadCount(data.unreadCount ?? 0);
+          const nextNotifications = data.notifications ?? [];
+          setNotifications(nextNotifications);
+          setUnreadCount(
+            computeUnreadCount(nextNotifications, data.unreadCount ?? 0, lastViewedAt)
+          );
         }
       } catch {
         if (!isCancelled) {
@@ -52,7 +88,47 @@ export function Header() {
       isCancelled = true;
       clearInterval(timer);
     };
-  }, [isAuthenticated, role]);
+  }, [isAuthenticated, role, lastViewedAt]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const onPointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (notificationRef.current && !notificationRef.current.contains(target)) {
+        setIsOpen(false);
+      }
+    };
+
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onEscape);
+
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onEscape);
+    };
+  }, [isOpen]);
+
+  const handleToggleNotifications = () => {
+    setIsOpen((current) => {
+      const next = !current;
+      if (next) {
+        const now = Date.now();
+        setLastViewedAt(now);
+        setUnreadCount(0);
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(storageKey, now.toString());
+        }
+      }
+      return next;
+    });
+  };
 
   const title = useMemo(() => {
     if (role === "Admin") return "Tat ca lich kham hom nay";
@@ -61,7 +137,7 @@ export function Header() {
   }, [role]);
 
   return (
-    <header className="h-20 bg-white/90 backdrop-blur-md border-b border-gray-100 flex items-center justify-between px-8 shadow-sm transition-all duration-300">
+    <header className="relative z-20 h-20 bg-white/90 backdrop-blur-md border-b border-gray-100 flex items-center justify-between px-8 shadow-sm transition-all duration-300">
       <div>
         <h2 className="text-xl font-bold text-gray-800 tracking-tight">Welcome back</h2>
         <p className="text-sm text-gray-500 font-medium">
@@ -76,9 +152,9 @@ export function Header() {
           Logout
         </button>
 
-        <div className="relative">
+        <div ref={notificationRef} className="relative z-30">
           <button
-            onClick={() => setIsOpen((v) => !v)}
+            onClick={handleToggleNotifications}
             className="p-2.5 rounded-full bg-gray-50 hover:bg-gray-100 relative text-gray-500 transition-colors shadow-sm"
             aria-label="Notifications"
           >
@@ -91,7 +167,7 @@ export function Header() {
           </button>
 
           {isOpen && (
-            <div className="absolute right-0 mt-2 w-[380px] max-h-[420px] overflow-auto rounded-2xl border border-gray-200 bg-white shadow-xl z-50">
+            <div className="absolute right-0 mt-2 w-[380px] max-h-[420px] overflow-auto rounded-2xl border border-gray-200 bg-white shadow-xl z-40">
               <div className="sticky top-0 bg-white border-b border-gray-100 px-4 py-3">
                 <p className="text-sm font-bold text-gray-800">{title}</p>
                 <p className="text-xs text-gray-500">

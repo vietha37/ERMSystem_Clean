@@ -22,10 +22,27 @@ namespace ERMSystem.Infrastructure.Repositories
         public async Task<List<Patient>> GetAllAsync(CancellationToken ct = default)
             => await _context.Patients.ToListAsync(ct);
 
-        public async Task<(IEnumerable<Patient> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize, CancellationToken ct = default)
+        public async Task<(IEnumerable<Patient> Items, int TotalCount)> GetPagedAsync(
+            int pageNumber,
+            int pageSize,
+            string? textSearch = null,
+            CancellationToken ct = default)
         {
-            var totalCount = await _context.Patients.CountAsync(ct);
-            var items = await _context.Patients
+            var query = _context.Patients.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(textSearch))
+            {
+                var keyword = textSearch.Trim();
+                var pattern = $"%{keyword}%";
+                query = query.Where(p =>
+                    EF.Functions.Like(p.FullName, pattern) ||
+                    EF.Functions.Like(p.Phone, pattern) ||
+                    EF.Functions.Like(p.Address, pattern) ||
+                    EF.Functions.Like(p.Gender, pattern));
+            }
+
+            var totalCount = await query.CountAsync(ct);
+            var items = await query
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync(ct);

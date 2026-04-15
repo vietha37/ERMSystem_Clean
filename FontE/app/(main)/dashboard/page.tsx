@@ -216,6 +216,54 @@ function MainTrendChart({ points }: { points: DashboardTrendPoint[] }) {
   );
 }
 
+function DailySnapshotDonut({
+  items,
+}: {
+  items: Array<{ label: string; value: number; color: string; light: string }>;
+}) {
+  const total = items.reduce((sum, item) => sum + item.value, 0);
+
+  if (total <= 0) {
+    return <p className="text-sm text-slate-500">No snapshot data.</p>;
+  }
+
+  const stops = items.reduce<{ next: number; parts: string[] }>(
+    (acc, item) => {
+      const start = (acc.next / total) * 100;
+      const endValue = acc.next + item.value;
+      const end = (endValue / total) * 100;
+      acc.parts.push(`${item.color} ${start.toFixed(2)}% ${end.toFixed(2)}%`);
+      return { next: endValue, parts: acc.parts };
+    },
+    { next: 0, parts: [] }
+  ).parts;
+
+  const gradient = `conic-gradient(${stops.join(", ")})`;
+
+  return (
+    <div className="space-y-4">
+      <div className="mx-auto flex h-44 w-44 items-center justify-center rounded-full" style={{ background: gradient }}>
+        <div className="flex h-28 w-28 flex-col items-center justify-center rounded-full bg-white shadow-inner">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Total</p>
+          <p className="text-xl font-bold text-slate-900">{formatNumber(total)}</p>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        {items.map((item) => (
+          <div key={item.label} className="flex items-center justify-between rounded-xl border border-slate-100 px-3 py-2">
+            <span className="flex items-center gap-2 text-sm font-medium text-slate-700">
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+              {item.label}
+            </span>
+            <span className="text-xs font-semibold text-slate-600">{formatNumber(item.value)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [trends, setTrends] = useState<DashboardTrends | null>(null);
@@ -317,16 +365,45 @@ export default function DashboardPage() {
     };
   }, [trendSummary]);
 
-  const miniBars = useMemo(() => {
-    const data = trendPoints.slice(-8);
-    const max = Math.max(...data.map((item) => item.patientsCount + item.prescriptionsCount), 1);
+  const snapshotPieData = useMemo(() => {
+    const palette = [
+      { color: "#3b82f6", light: "#dbeafe" },
+      { color: "#10b981", light: "#d1fae5" },
+      { color: "#f59e0b", light: "#fef3c7" },
+      { color: "#ef4444", light: "#fee2e2" },
+      { color: "#8b5cf6", light: "#ede9fe" },
+    ];
 
-    return data.map((item) => ({
-      label: item.label,
-      patientsHeight: Math.round((item.patientsCount / max) * 100),
-      prescriptionsHeight: Math.round((item.prescriptionsCount / max) * 100),
-    }));
-  }, [trendPoints]);
+    if (topDiagnoses.length > 0) {
+      return topDiagnoses.map((item, index) => ({
+        label: item.name,
+        value: Math.max(item.count, 0),
+        color: palette[index % palette.length].color,
+        light: palette[index % palette.length].light,
+      }));
+    }
+
+    return [
+      {
+        label: "Patients",
+        value: Math.max(stats?.totalPatients ?? 0, 0),
+        color: palette[0].color,
+        light: palette[0].light,
+      },
+      {
+        label: "Appointments",
+        value: Math.max(stats?.appointmentsToday ?? 0, 0),
+        color: palette[1].color,
+        light: palette[1].light,
+      },
+      {
+        label: "Completed",
+        value: Math.max(stats?.completedAppointments ?? 0, 0),
+        color: palette[2].color,
+        light: palette[2].light,
+      },
+    ].filter((x) => x.value > 0);
+  }, [topDiagnoses, stats]);
 
   if (isLoading) {
     return (
@@ -449,30 +526,8 @@ export default function DashboardPage() {
 
               <Card className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
                 <p className="text-sm font-semibold text-slate-800">Daily Snapshot</p>
-                <div className="mt-5 flex h-36 items-end justify-between gap-2">
-                  {miniBars.length ? (
-                    miniBars.map((bar) => (
-                      <div key={bar.label} className="flex flex-1 items-end justify-center gap-1">
-                        <div
-                          className="w-2 rounded-full bg-blue-500"
-                          style={{ height: `${Math.max(bar.patientsHeight, 6)}%` }}
-                        />
-                        <div
-                          className="w-2 rounded-full bg-emerald-500"
-                          style={{ height: `${Math.max(bar.prescriptionsHeight, 6)}%` }}
-                        />
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-slate-500">No bar data.</p>
-                  )}
-                </div>
-                <div className="mt-3 flex justify-between text-[10px] text-slate-500">
-                  {miniBars.map((bar) => (
-                    <span key={bar.label} className="truncate">
-                      {bar.label}
-                    </span>
-                  ))}
+                <div className="mt-4">
+                  <DailySnapshotDonut items={snapshotPieData} />
                 </div>
               </Card>
             </div>

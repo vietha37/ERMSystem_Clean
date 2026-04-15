@@ -134,6 +134,24 @@ export type CreateDoctorPayload = {
 
 export type UpdateDoctorPayload = CreateDoctorPayload;
 
+export type StaffUser = {
+  id: Id;
+  username: string;
+  role: Exclude<UserRole, "Admin">;
+};
+
+export type CreateStaffUserPayload = {
+  username: string;
+  password: string;
+  role: Exclude<UserRole, "Admin">;
+};
+
+export type UpdateStaffUserPayload = {
+  username: string;
+  role: Exclude<UserRole, "Admin">;
+  password?: string;
+};
+
 export type AppointmentPayload = {
   patientId: Id;
   doctorId: Id;

@@ -21,7 +21,11 @@ namespace ERMSystem.Application.Services
 
         public async Task<PaginatedResult<PatientDto>> GetAllPatientsAsync(PaginationRequest request, CancellationToken ct = default)
         {
-            var (items, totalCount) = await _patientRepository.GetPagedAsync(request.PageNumber, request.PageSize, ct);
+            var (items, totalCount) = await _patientRepository.GetPagedAsync(
+                request.PageNumber,
+                request.PageSize,
+                request.TextSearch,
+                ct);
             return new PaginatedResult<PatientDto>(items.Select(MapToDto), totalCount, request.PageNumber, request.PageSize);
         }
 

@@ -10,6 +10,7 @@ export function Sidebar() {
   const menuItemsByRole: Record<UserRole, Array<{ name: string; path: string }>> = {
     Admin: [
       { name: "Dashboard", path: "/dashboard" },
+      { name: "Staff", path: "/staff" },
       { name: "Patients", path: "/patients" },
       { name: "Appointments", path: "/appointments" },
       { name: "Medical Records", path: "/medical-records" },
