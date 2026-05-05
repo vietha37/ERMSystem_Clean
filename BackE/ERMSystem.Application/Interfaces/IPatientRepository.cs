@@ -16,6 +16,7 @@ namespace ERMSystem.Application.Interfaces
         Task<int> GetTotalCountAsync(CancellationToken ct = default);
         Task<Dictionary<DateTime, int>> GetCreatedCountByDayAsync(DateTime fromUtc, CancellationToken ct = default);
         Task<Patient?> GetByIdAsync(Guid id, CancellationToken ct = default);
+        Task<Patient?> GetByAppUserIdAsync(Guid appUserId, CancellationToken ct = default);
         Task AddAsync(Patient patient, CancellationToken ct = default);
         Task UpdateAsync(Patient patient, CancellationToken ct = default);
         Task DeleteAsync(Patient patient, CancellationToken ct = default);

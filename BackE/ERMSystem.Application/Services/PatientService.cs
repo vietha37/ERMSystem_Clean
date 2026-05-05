@@ -35,11 +35,18 @@ namespace ERMSystem.Application.Services
             return patient == null ? null : MapToDto(patient);
         }
 
+        public async Task<PatientDto?> GetPatientByAppUserIdAsync(Guid appUserId, CancellationToken ct = default)
+        {
+            var patient = await _patientRepository.GetByAppUserIdAsync(appUserId, ct);
+            return patient == null ? null : MapToDto(patient);
+        }
+
         public async Task<PatientDto> CreatePatientAsync(CreatePatientDto dto, CancellationToken ct = default)
         {
             var patient = new Patient
             {
                 Id = Guid.NewGuid(),
+                AppUserId = null,
                 FullName = dto.FullName,
                 DateOfBirth = dto.DateOfBirth,
                 Gender = dto.Gender,

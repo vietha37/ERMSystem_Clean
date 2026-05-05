@@ -1,7 +1,11 @@
 import api from './api';
-import { AuthResponse, UserRole } from "./types";
-
-const TOKEN_KEY = 'emr_auth_token';
+import { AuthResponse, PatientRegisterPayload, UserRole } from "./types";
+import {
+  clearAuthSession,
+  getAccessToken as getStoredAccessToken,
+  getRefreshToken as getStoredRefreshToken,
+  setAuthSession,
+} from "./authStorage";
 const ROLE_CLAIM_URI = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role";
 const NAME_CLAIM_URI = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name";
 
@@ -33,25 +37,57 @@ function parseJwtPayload(token: string): JwtPayload | null {
 export const authService = {
   login: async (username: string, password: string): Promise<AuthResponse> => {
     const response = await api.post<AuthResponse>('/auth/login', { username, password });
-    const token = response.data?.token;
-    if (!token) {
+    const token = response.data?.accessToken || response.data?.token;
+    if (!token || !response.data?.refreshToken) {
       throw new Error('Authentication failed: no token received from server.');
     }
-    localStorage.setItem(TOKEN_KEY, token);
+    setAuthSession(response.data);
     return response.data;
   },
 
-  logout: () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem(TOKEN_KEY);
+  registerPatient: async (payload: PatientRegisterPayload): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>("/auth/patient-register", payload);
+    const token = response.data?.accessToken || response.data?.token;
+    if (!token || !response.data?.refreshToken) {
+      throw new Error("Patient registration failed: no token received from server.");
+    }
+
+    setAuthSession(response.data);
+    return response.data;
+  },
+
+  logout: async (): Promise<void> => {
+    const accessToken = getStoredAccessToken();
+    const refreshToken = getStoredRefreshToken();
+
+    try {
+      if (accessToken && refreshToken) {
+        await api.post('/auth/logout', { accessToken, refreshToken });
+      }
+    } finally {
+      clearAuthSession();
     }
   },
 
-  getToken: (): string | null => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem(TOKEN_KEY);
+  refreshTokens: async (): Promise<AuthResponse> => {
+    const accessToken = getStoredAccessToken();
+    const refreshToken = getStoredRefreshToken();
+
+    if (!accessToken || !refreshToken) {
+      throw new Error("No refresh session available.");
     }
-    return null;
+
+    const response = await api.post<AuthResponse>("/auth/refresh", { accessToken, refreshToken });
+    setAuthSession(response.data);
+    return response.data;
+  },
+
+  getToken: (): string | null => {
+    return getStoredAccessToken();
+  },
+
+  getRefreshToken: (): string | null => {
+    return getStoredRefreshToken();
   },
 
   isAuthenticated: (): boolean => {
@@ -98,5 +134,24 @@ export const authService = {
     }
 
     return Date.now() >= payload.exp * 1000;
+  },
+
+  ensureValidSession: async (): Promise<boolean> => {
+    const token = authService.getToken();
+    if (!token) {
+      return false;
+    }
+
+    if (!authService.isTokenExpired()) {
+      return true;
+    }
+
+    try {
+      await authService.refreshTokens();
+      return true;
+    } catch {
+      clearAuthSession();
+      return false;
+    }
   },
 };

@@ -24,6 +24,19 @@ builder.Services.AddDbContext<ERMSystem.Infrastructure.Data.ApplicationDbContext
                 errorNumbersToAdd: null);
         }));
 
+builder.Services.AddDbContext<ERMSystem.Infrastructure.HospitalData.HospitalDbContext>(options =>
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("HospitalConnection")
+        ?? builder.Configuration.GetConnectionString("DefaultConnection"),
+        sqlOptions =>
+        {
+            sqlOptions.CommandTimeout(30);
+            sqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(5),
+                errorNumbersToAdd: null);
+        }));
+
 // ── JWT Authentication ────────────────────────────────────────────────────────
 var jwtKey = builder.Configuration["Jwt:Key"]!;
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -79,6 +92,8 @@ builder.Services.AddScoped<IPrescriptionItemService, PrescriptionItemService>();
 // ── DI – Dashboard ────────────────────────────────────────────────────────────
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IHospitalCatalogRepository, HospitalCatalogRepository>();
+builder.Services.AddScoped<IHospitalCatalogService, HospitalCatalogService>();
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
                    ?? new[] { "http://localhost:3000", "http://localhost:3001" };

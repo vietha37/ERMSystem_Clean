@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { authService } from '@/services/authService';
 import { getApiErrorMessage } from '@/services/error';
-import { UserRole } from '@/services/types';
+import { PatientRegisterPayload, UserRole } from '@/services/types';
 import toast from 'react-hot-toast';
 
 export function useAuth() {
@@ -15,23 +15,25 @@ export function useAuth() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    // Check initial auth status on mount
-    const checkAuth = () => {
-      const authStatus = authService.isAuthenticated() && !authService.isTokenExpired();
+    const checkAuth = async () => {
+      const authStatus = await authService.ensureValidSession();
       setIsAuthenticated(authStatus);
       setRole(authStatus ? authService.getRole() : null);
       setUsername(authStatus ? authService.getUsername() : null);
       setIsLoading(false);
     };
-    checkAuth();
+
+    void checkAuth();
   }, []);
 
   const login = async (username: string, password: string, remember: boolean = false) => {
     try {
       await authService.login(username, password);
+      const nextRole = authService.getRole();
+      const nextUsername = authService.getUsername();
       setIsAuthenticated(true);
-      setRole(authService.getRole());
-      setUsername(authService.getUsername());
+      setRole(nextRole);
+      setUsername(nextUsername);
       toast.success('Login successful!');
       
       // Additional remember me logic if needed
@@ -41,7 +43,7 @@ export function useAuth() {
          localStorage.removeItem('emr_remember_me');
       }
 
-      router.push('/dashboard');
+      router.push(nextRole === 'Patient' ? '/portal' : '/dashboard');
       return { success: true };
     } catch (error: unknown) {
       const msg = getApiErrorMessage(error, 'Invalid username or password');
@@ -50,8 +52,26 @@ export function useAuth() {
     }
   };
 
-  const logout = () => {
-    authService.logout();
+  const registerPatient = async (payload: PatientRegisterPayload) => {
+    try {
+      await authService.registerPatient(payload);
+      const nextRole = authService.getRole();
+      const nextUsername = authService.getUsername();
+      setIsAuthenticated(true);
+      setRole(nextRole);
+      setUsername(nextUsername);
+      toast.success('Patient account created successfully');
+      router.push('/portal');
+      return { success: true };
+    } catch (error: unknown) {
+      const msg = getApiErrorMessage(error, 'Unable to create patient account');
+      toast.error(msg);
+      return { success: false, error: msg };
+    }
+  };
+
+  const logout = async () => {
+    await authService.logout();
     setIsAuthenticated(false);
     setRole(null);
     setUsername(null);
@@ -65,6 +85,7 @@ export function useAuth() {
     role,
     username,
     login,
+    registerPatient,
     logout,
   };
 }

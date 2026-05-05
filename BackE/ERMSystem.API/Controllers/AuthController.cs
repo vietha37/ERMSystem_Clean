@@ -41,6 +41,24 @@ namespace ERMSystem.API.Controllers
             }
         }
 
+        // POST: api/auth/patient-register
+        [HttpPost("patient-register")]
+        public async Task<IActionResult> RegisterPatient([FromBody] PatientRegisterDto registerDto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            try
+            {
+                var response = await _authService.RegisterPatientAsync(registerDto);
+                return Ok(response);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(ex.Message);
+            }
+        }
+
         // POST: api/auth/login
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto loginDto)
@@ -57,6 +75,35 @@ namespace ERMSystem.API.Controllers
             {
                 return Unauthorized(ex.Message);
             }
+        }
+
+        // POST: api/auth/refresh
+        [HttpPost("refresh")]
+        public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequestDto request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            try
+            {
+                var response = await _authService.RefreshTokenAsync(request);
+                return Ok(response);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(ex.Message);
+            }
+        }
+
+        // POST: api/auth/logout
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout([FromBody] RefreshTokenRequestDto request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            await _authService.LogoutAsync(request);
+            return NoContent();
         }
     }
 }

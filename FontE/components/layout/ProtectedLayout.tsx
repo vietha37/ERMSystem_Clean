@@ -11,12 +11,12 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
   const [authorized, setAuthorized] = useState(false);
 
   useEffect(() => {
-    const checkAuth = () => {
-      const isAuth = authService.isAuthenticated() && !authService.isTokenExpired();
+    const checkAuth = async () => {
+      const isAuth = await authService.ensureValidSession();
       const role = authService.getRole();
 
       if (!isAuth || !role) {
-        authService.logout();
+        await authService.logout();
         router.push('/login');
         return;
       }
@@ -25,6 +25,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
         Admin: ['/dashboard', '/staff', '/patients', '/appointments', '/medical-records', '/prescriptions'],
         Doctor: ['/dashboard', '/patients', '/appointments', '/medical-records', '/prescriptions'],
         Receptionist: ['/dashboard', '/patients', '/appointments'],
+        Patient: ['/portal'],
       };
 
       const allowedRoutes = allowedRoutesByRole[role];
@@ -33,14 +34,14 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
       );
 
       if (!isAllowed) {
-        router.push('/dashboard');
+        router.push(allowedRoutes[0] ?? '/login');
         return;
       }
 
       setAuthorized(true);
     };
-    
-    checkAuth();
+
+    void checkAuth();
   }, [pathname, router]);
 
   if (!authorized) {

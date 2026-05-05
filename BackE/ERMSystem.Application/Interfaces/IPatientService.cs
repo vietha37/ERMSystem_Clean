@@ -10,6 +10,7 @@ namespace ERMSystem.Application.Interfaces
     {
         Task<PaginatedResult<PatientDto>> GetAllPatientsAsync(PaginationRequest request, CancellationToken ct = default);
         Task<PatientDto?> GetPatientByIdAsync(Guid id, CancellationToken ct = default);
+        Task<PatientDto?> GetPatientByAppUserIdAsync(Guid appUserId, CancellationToken ct = default);
         Task<PatientDto> CreatePatientAsync(CreatePatientDto createPatientDto, CancellationToken ct = default);
         Task UpdatePatientAsync(Guid id, UpdatePatientDto updatePatientDto, CancellationToken ct = default);
         Task DeletePatientAsync(Guid id, CancellationToken ct = default);

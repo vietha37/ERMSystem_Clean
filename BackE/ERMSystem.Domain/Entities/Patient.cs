@@ -6,6 +6,7 @@ namespace ERMSystem.Domain.Entities
     public class Patient
     {
         public Guid Id { get; set; }
+        public Guid? AppUserId { get; set; }
         public string FullName { get; set; } = string.Empty;
         public DateTime DateOfBirth { get; set; }
         public string Gender { get; set; } = string.Empty;

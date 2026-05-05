@@ -28,6 +28,9 @@ export function Sidebar() {
       { name: "Patients", path: "/patients" },
       { name: "Appointments", path: "/appointments" },
     ],
+    Patient: [
+      { name: "Patient Portal", path: "/portal" },
+    ],
   };
 
   const menuItems = role ? menuItemsByRole[role] : [];

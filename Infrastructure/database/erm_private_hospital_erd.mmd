@@ -1,0 +1,76 @@
+erDiagram
+    USERS ||--o{ USER_ROLES : has
+    ROLES ||--o{ USER_ROLES : grants
+    USERS ||--o{ REFRESH_TOKENS : owns
+    USERS ||--o{ USER_SESSIONS : owns
+    USERS ||--o{ SECURITY_EVENTS : emits
+
+    USERS ||--o| STAFF_PROFILES : maps_to
+    USERS ||--o| PATIENT_ACCOUNTS : maps_to
+
+    DEPARTMENTS ||--o{ CLINICS : contains
+    SPECIALTIES ||--o{ DOCTOR_PROFILES : classifies
+    STAFF_PROFILES ||--o| DOCTOR_PROFILES : extends
+    CLINICS ||--o{ DOCTOR_SCHEDULES : hosts
+    DOCTOR_PROFILES ||--o{ DOCTOR_SCHEDULES : serves
+
+    PATIENTS ||--o| PATIENT_ACCOUNTS : linked_account
+    PATIENTS ||--o{ PATIENT_IDENTIFIERS : has
+    PATIENTS ||--o{ PATIENT_CONTACTS : has
+    PATIENTS ||--o{ PATIENT_EMERGENCY_CONTACTS : has
+    PATIENTS ||--o{ PATIENT_INSURANCE_POLICIES : has
+    PATIENTS ||--o{ PATIENT_CONSENTS : signs
+
+    DOCTOR_SCHEDULES ||--o{ APPOINTMENT_SLOTS : publishes
+    PATIENTS ||--o{ APPOINTMENTS : books
+    DOCTOR_PROFILES ||--o{ APPOINTMENTS : receives
+    CLINICS ||--o{ APPOINTMENTS : serves
+    APPOINTMENTS ||--o| CHECK_INS : becomes
+    APPOINTMENTS ||--o| QUEUE_TICKETS : issues
+    APPOINTMENTS ||--o| ENCOUNTERS : may_create
+
+    PATIENTS ||--o{ ENCOUNTERS : has
+    DOCTOR_PROFILES ||--o{ ENCOUNTERS : attends
+    CLINICS ||--o{ ENCOUNTERS : hosts
+    ENCOUNTERS ||--o{ VITAL_SIGNS : records
+    ENCOUNTERS ||--o{ DIAGNOSES : yields
+    ENCOUNTERS ||--o{ CLINICAL_NOTES : writes
+    ENCOUNTERS ||--o{ CLINICAL_DOCUMENTS : stores
+    ENCOUNTERS ||--o{ ORDER_HEADERS : creates
+
+    PATIENTS ||--o{ ALLERGIES : has
+    PATIENTS ||--o{ CHRONIC_CONDITIONS : has
+
+    ORDER_HEADERS ||--o{ LAB_ORDERS : contains
+    ORDER_HEADERS ||--o{ IMAGING_ORDERS : contains
+    ORDER_HEADERS ||--o{ PRESCRIPTIONS : contains
+
+    LAB_SERVICES ||--o{ LAB_ORDERS : requested
+    LAB_ORDERS ||--o{ SPECIMENS : collects
+    LAB_ORDERS ||--o{ LAB_RESULT_ITEMS : produces
+
+    IMAGING_SERVICES ||--o{ IMAGING_ORDERS : requested
+    IMAGING_ORDERS ||--o{ IMAGING_REPORTS : produces
+
+    MEDICINES ||--o{ PRESCRIPTION_ITEMS : references
+    PRESCRIPTIONS ||--o{ PRESCRIPTION_ITEMS : contains
+    PRESCRIPTIONS ||--o{ DISPENSINGS : fulfills
+    MEDICINES ||--o{ INVENTORY_BATCHES : stocked_as
+    INVENTORY_BATCHES ||--o{ INVENTORY_TRANSACTIONS : moves
+
+    SERVICE_CATALOG ||--o{ INVOICE_ITEMS : charges
+    PATIENTS ||--o{ INVOICES : billed
+    ENCOUNTERS ||--o{ INVOICES : linked_to
+    INVOICES ||--o{ INVOICE_ITEMS : contains
+    INVOICES ||--o{ PAYMENTS : paid_by
+    PAYMENTS ||--o{ REFUNDS : reverses
+    INVOICES ||--o{ INSURANCE_CLAIMS : claims
+
+    NOTIFICATION_TEMPLATES ||--o{ OUTBOX_MESSAGES : renders
+    PATIENTS ||--o{ NOTIFICATION_PREFERENCES : configures
+    OUTBOX_MESSAGES ||--o{ NOTIFICATION_DELIVERIES : sends
+
+    EXTERNAL_MAPPINGS ||--o{ WEBHOOK_LOGS : correlates
+    INBOX_MESSAGES ||--o{ AUDIT_LOGS : traces
+    USERS ||--o{ AUDIT_LOGS : performs
+    USERS ||--o{ ENTITY_ACCESS_LOGS : accesses

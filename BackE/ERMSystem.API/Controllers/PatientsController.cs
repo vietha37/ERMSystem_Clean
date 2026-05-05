@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
+using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ERMSystem.Application.DTOs;
@@ -24,6 +26,7 @@ namespace ERMSystem.API.Controllers
 
         // GET: api/patients
         [HttpGet]
+        [Authorize(Roles = "Admin,Doctor,Receptionist")]
         public async Task<IActionResult> GetAllPatients([FromQuery] PaginationRequest request, CancellationToken ct)
         {
             var result = await _patientService.GetAllPatientsAsync(request, ct);
@@ -32,6 +35,7 @@ namespace ERMSystem.API.Controllers
 
         // GET: api/patients/{id}
         [HttpGet("{id}")]
+        [Authorize(Roles = "Admin,Doctor,Receptionist")]
         public async Task<IActionResult> GetPatientById(Guid id, CancellationToken ct)
         {
             var patient = await _patientService.GetPatientByIdAsync(id, ct);
@@ -40,8 +44,31 @@ namespace ERMSystem.API.Controllers
             return Ok(patient);
         }
 
+        // GET: api/patients/me
+        [HttpGet("me")]
+        [Authorize(Roles = "Patient")]
+        public async Task<IActionResult> GetMyProfile(CancellationToken ct)
+        {
+            var userIdRaw = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
+                ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (!Guid.TryParse(userIdRaw, out var userId))
+            {
+                return Unauthorized("Invalid user context.");
+            }
+
+            var patient = await _patientService.GetPatientByAppUserIdAsync(userId, ct);
+            if (patient == null)
+            {
+                return NotFound("Patient profile not found.");
+            }
+
+            return Ok(patient);
+        }
+
         // POST: api/patients
         [HttpPost]
+        [Authorize(Roles = "Admin,Receptionist")]
         public async Task<IActionResult> CreatePatient([FromBody] CreatePatientDto createPatientDto, CancellationToken ct)
         {
             if (!ModelState.IsValid)
@@ -53,6 +80,7 @@ namespace ERMSystem.API.Controllers
 
         // PUT: api/patients/{id}
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin,Receptionist")]
         public async Task<IActionResult> UpdatePatient(Guid id, [FromBody] UpdatePatientDto updatePatientDto, CancellationToken ct)
         {
             if (!ModelState.IsValid)

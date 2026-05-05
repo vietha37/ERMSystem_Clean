@@ -67,6 +67,9 @@ namespace ERMSystem.Infrastructure.Repositories
         public async Task<Patient?> GetByIdAsync(Guid id, CancellationToken ct = default)
             => await _context.Patients.FindAsync(new object[] { id }, ct);
 
+        public async Task<Patient?> GetByAppUserIdAsync(Guid appUserId, CancellationToken ct = default)
+            => await _context.Patients.FirstOrDefaultAsync(p => p.AppUserId == appUserId, ct);
+
         public async Task AddAsync(Patient patient, CancellationToken ct = default)
         {
             await _context.Patients.AddAsync(patient, ct);

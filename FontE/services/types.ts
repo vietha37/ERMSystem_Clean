@@ -1,7 +1,7 @@
 export type Id = string;
 
 export type AppointmentStatus = "Pending" | "Completed" | "Cancelled";
-export type UserRole = "Admin" | "Doctor" | "Receptionist";
+export type UserRole = "Admin" | "Doctor" | "Receptionist" | "Patient";
 
 export type PaginatedResult<T> = {
   items: T[];
@@ -112,6 +112,8 @@ export type TodayNotifications = {
 
 export type AuthResponse = {
   token: string;
+  accessToken: string;
+  refreshToken: string;
   username: string;
   role: string;
   expiresAt: string;
@@ -123,6 +125,11 @@ export type CreatePatientPayload = {
   gender: string;
   phone: string;
   address: string;
+};
+
+export type PatientRegisterPayload = CreatePatientPayload & {
+  username: string;
+  password: string;
 };
 
 export type UpdatePatientPayload = CreatePatientPayload;
@@ -137,18 +144,18 @@ export type UpdateDoctorPayload = CreateDoctorPayload;
 export type StaffUser = {
   id: Id;
   username: string;
-  role: Exclude<UserRole, "Admin">;
+  role: Exclude<UserRole, "Admin" | "Patient">;
 };
 
 export type CreateStaffUserPayload = {
   username: string;
   password: string;
-  role: Exclude<UserRole, "Admin">;
+  role: Exclude<UserRole, "Admin" | "Patient">;
 };
 
 export type UpdateStaffUserPayload = {
   username: string;
-  role: Exclude<UserRole, "Admin">;
+  role: Exclude<UserRole, "Admin" | "Patient">;
   password?: string;
 };
 

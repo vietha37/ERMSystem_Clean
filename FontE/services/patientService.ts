@@ -1,8 +1,10 @@
 import api from "./api";
 import {
+  AuthResponse,
   CreatePatientPayload,
   PaginatedResult,
   Patient,
+  PatientRegisterPayload,
   UpdatePatientPayload,
 } from "./types";
 
@@ -28,8 +30,18 @@ export const patientService = {
     return response.data;
   },
 
+  getMe: async (): Promise<Patient> => {
+    const response = await api.get<Patient>("/patients/me");
+    return response.data;
+  },
+
   create: async (data: CreatePatientPayload): Promise<Patient> => {
     const response = await api.post<Patient>("/patients", data);
+    return response.data;
+  },
+
+  register: async (data: PatientRegisterPayload): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>("/auth/patient-register", data);
     return response.data;
   },
 
