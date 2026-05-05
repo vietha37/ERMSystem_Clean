@@ -2,6 +2,7 @@ using ERMSystem.Application.Interfaces;
 using ERMSystem.Application.Services;
 using ERMSystem.Infrastructure.Repositories;
 using ERMSystem.Infrastructure.Services;
+using ERMSystem.Infrastructure.Messaging;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -10,6 +11,11 @@ using Scalar.AspNetCore;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection("RabbitMQ"));
+builder.Services.Configure<OutboxPublisherOptions>(builder.Configuration.GetSection("OutboxPublisher"));
+builder.Services.Configure<NotificationConsumerOptions>(builder.Configuration.GetSection("NotificationConsumer"));
+builder.Services.Configure<NotificationDispatchOptions>(builder.Configuration.GetSection("NotificationDispatch"));
 
 // ── Database ──────────────────────────────────────────────────────────────────
 builder.Services.AddDbContext<ERMSystem.Infrastructure.Data.ApplicationDbContext>(options =>
@@ -94,6 +100,19 @@ builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IHospitalCatalogRepository, HospitalCatalogRepository>();
 builder.Services.AddScoped<IHospitalCatalogService, HospitalCatalogService>();
+builder.Services.AddScoped<IHospitalDoctorRepository, HospitalDoctorRepository>();
+builder.Services.AddScoped<IHospitalDoctorService, HospitalDoctorService>();
+builder.Services.AddScoped<IHospitalAppointmentRepository, HospitalAppointmentRepository>();
+builder.Services.AddScoped<IHospitalAppointmentService, HospitalAppointmentService>();
+builder.Services.AddScoped<IHospitalPatientPortalRepository, HospitalPatientPortalRepository>();
+builder.Services.AddScoped<IHospitalPatientPortalService, HospitalPatientPortalService>();
+builder.Services.AddScoped<IHospitalNotificationDeliveryRepository, HospitalNotificationDeliveryRepository>();
+builder.Services.AddScoped<IHospitalNotificationDeliveryService, HospitalNotificationDeliveryService>();
+builder.Services.AddSingleton<INotificationChannelSender, MockEmailNotificationSender>();
+builder.Services.AddSingleton<INotificationChannelSender, MockSmsNotificationSender>();
+builder.Services.AddHostedService<HospitalOutboxPublisherService>();
+builder.Services.AddHostedService<HospitalNotificationConsumerService>();
+builder.Services.AddHostedService<HospitalNotificationDispatchService>();
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
                    ?? new[] { "http://localhost:3000", "http://localhost:3001" };

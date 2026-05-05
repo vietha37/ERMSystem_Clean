@@ -2,6 +2,7 @@ import { BookingForm } from "@/components/public/BookingForm";
 import { PublicPageShell } from "@/components/public/PublicPageShell";
 import { SectionHeading } from "@/components/public/SectionHeading";
 import { hospitalCatalogService } from "@/services/hospitalCatalogService";
+import { hospitalDoctorService } from "@/services/hospitalDoctorService";
 
 const fallbackServices = [
   "Kham tong quat cao cap",
@@ -13,14 +14,28 @@ const fallbackServices = [
 
 export default async function BookingPage() {
   let serviceOptions = fallbackServices;
+  let specialties = [] as Awaited<ReturnType<typeof hospitalCatalogService.getSpecialties>>;
+  let doctors = [] as Awaited<ReturnType<typeof hospitalDoctorService.getAll>>;
 
   try {
     const services = await hospitalCatalogService.getServices();
     if (services.length > 0) {
-      serviceOptions = services.map((service) => service.name);
+      serviceOptions = services.map((service) => `${service.serviceCode} - ${service.name}`);
     }
   } catch {
     serviceOptions = fallbackServices;
+  }
+
+  try {
+    specialties = await hospitalCatalogService.getSpecialties();
+  } catch {
+    specialties = [];
+  }
+
+  try {
+    doctors = await hospitalDoctorService.getAll();
+  } catch {
+    doctors = [];
   }
 
   return (
@@ -30,15 +45,15 @@ export default async function BookingPage() {
           <div>
             <SectionHeading
               eyebrow="Dat lich thong minh"
-              title="Trang booking phai cho cam giac dang lam viec voi mot dieu phoi vien y te rieng."
-              description="Nguoi benh can thay ro cac lua chon, biet khi nao duoc lien he va cam thay an tam ve du lieu suc khoe cua minh."
+              title="Trang booking da bat dau di vao luong dat lich that tren database dich."
+              description="Nguoi benh chon chuyen khoa, bac si, ngay gio va gui yeu cau. He thong kiem tra lich lam viec va tao lich hen neu hop le."
             />
 
             <div className="mt-8 grid gap-4">
               {[
-                "Xac nhan lich qua dien thoai trong thoi gian ngan.",
-                "Uu tien tu van dung chuyen khoa truoc khi chot lich.",
-                "Co the phoi hop kham tai vien, lay mau tai nha va tai kham theo goi.",
+                "Kiem tra khung gio dua tren lich lam viec cua bac si.",
+                "Tu dong tao ho so benh nhan moi neu chua ton tai trong he thong dich.",
+                "Day su kien AppointmentCreated.v1 vao notification outbox de xu ly nhac lich o phase sau.",
               ].map((item) => (
                 <div key={item} className="rounded-[1.6rem] border border-slate-200 bg-white p-5 text-sm leading-7 text-slate-700 shadow-[0_20px_55px_rgba(15,23,42,0.05)]">
                   {item}
@@ -47,7 +62,14 @@ export default async function BookingPage() {
             </div>
           </div>
 
-          <BookingForm serviceOptions={serviceOptions} />
+          <BookingForm
+            serviceOptions={serviceOptions}
+            specialtyOptions={specialties.map((specialty) => ({
+              id: specialty.id,
+              name: specialty.name,
+            }))}
+            doctors={doctors}
+          />
         </div>
       </section>
     </PublicPageShell>

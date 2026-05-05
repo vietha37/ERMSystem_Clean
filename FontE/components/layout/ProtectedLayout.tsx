@@ -22,9 +22,9 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
       }
 
       const allowedRoutesByRole: Record<UserRole, string[]> = {
-        Admin: ['/dashboard', '/staff', '/patients', '/appointments', '/medical-records', '/prescriptions'],
+        Admin: ['/dashboard', '/staff', '/patients', '/appointments', '/medical-records', '/prescriptions', '/notifications'],
         Doctor: ['/dashboard', '/patients', '/appointments', '/medical-records', '/prescriptions'],
-        Receptionist: ['/dashboard', '/patients', '/appointments'],
+        Receptionist: ['/dashboard', '/patients', '/appointments', '/notifications'],
         Patient: ['/portal'],
       };
 
@@ -49,7 +49,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
       <div className="min-h-screen flex items-center justify-center bg-blue-50/50">
         <div className="flex flex-col items-center">
           <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-          <p className="mt-4 text-gray-500 font-medium tracking-wide">Securing connection...</p>
+          <p className="mt-4 text-gray-500 font-medium tracking-wide">Dang xac thuc phien dang nhap...</p>
         </div>
       </div>
     );

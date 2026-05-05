@@ -37,6 +37,10 @@ public class HospitalDbContext : DbContext
     public DbSet<HospitalQueueTicketEntity> QueueTickets => Set<HospitalQueueTicketEntity>();
 
     public DbSet<HospitalServiceCatalogEntity> ServiceCatalog => Set<HospitalServiceCatalogEntity>();
+    public DbSet<HospitalOutboxMessageEntity> OutboxMessages => Set<HospitalOutboxMessageEntity>();
+    public DbSet<HospitalNotificationTemplateEntity> NotificationTemplates => Set<HospitalNotificationTemplateEntity>();
+    public DbSet<HospitalNotificationDeliveryEntity> NotificationDeliveries => Set<HospitalNotificationDeliveryEntity>();
+    public DbSet<IntegrationInboxMessageEntity> InboxMessages => Set<IntegrationInboxMessageEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -44,6 +48,9 @@ public class HospitalDbContext : DbContext
 
         modelBuilder.Entity<HospitalUserEntity>().Property(x => x.RowVersion).IsRowVersion();
         modelBuilder.Entity<HospitalPatientEntity>().Property(x => x.RowVersion).IsRowVersion();
+        modelBuilder.Entity<HospitalDoctorProfileEntity>().Property(x => x.ConsultationFee).HasPrecision(18, 2);
+        modelBuilder.Entity<HospitalPatientInsurancePolicyEntity>().Property(x => x.CoveragePercent).HasPrecision(5, 2);
+        modelBuilder.Entity<HospitalServiceCatalogEntity>().Property(x => x.UnitPrice).HasPrecision(18, 2);
 
         modelBuilder.Entity<HospitalUserRoleEntity>().HasKey(x => new { x.UserId, x.RoleCode });
 
@@ -213,6 +220,12 @@ public class HospitalDbContext : DbContext
             .HasOne(x => x.Appointment)
             .WithMany(x => x.QueueTickets)
             .HasForeignKey(x => x.AppointmentId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<HospitalNotificationDeliveryEntity>()
+            .HasOne(x => x.OutboxMessage)
+            .WithMany()
+            .HasForeignKey(x => x.OutboxMessageId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

@@ -110,6 +110,59 @@ export type TodayNotifications = {
   notifications: AppointmentNotification[];
 };
 
+export type NotificationDeliveryStatus = "Queued" | "Delivered" | "Failed" | "Skipped";
+
+export type NotificationDelivery = {
+  id: Id;
+  outboxMessageId: Id;
+  channelCode: string;
+  recipient: string;
+  deliveryStatus: NotificationDeliveryStatus;
+  providerMessageId?: string | null;
+  attemptCount: number;
+  lastAttemptAtUtc?: string | null;
+  deliveredAtUtc?: string | null;
+  errorMessage?: string | null;
+};
+
+export type NotificationDeliveryListResult = {
+  totalCount: number;
+  items: NotificationDelivery[];
+};
+
+export type HospitalPatientPortalProfile = {
+  patientId: Id;
+  medicalRecordNumber: string;
+  fullName: string;
+  dateOfBirth: string;
+  gender: string;
+  phone?: string | null;
+  email?: string | null;
+  address?: string | null;
+  portalStatus: string;
+  activatedAtUtc: string;
+};
+
+export type HospitalPatientPortalAppointment = {
+  appointmentId: Id;
+  appointmentNumber: string;
+  status: string;
+  appointmentType: string;
+  bookingChannel: string;
+  appointmentStartLocal: string;
+  appointmentEndLocal?: string | null;
+  doctorName: string;
+  specialtyName: string;
+  clinicName: string;
+  chiefComplaint?: string | null;
+};
+
+export type HospitalPatientPortalOverview = {
+  profile: HospitalPatientPortalProfile;
+  upcomingAppointments: HospitalPatientPortalAppointment[];
+  recentAppointments: HospitalPatientPortalAppointment[];
+};
+
 export type AuthResponse = {
   token: string;
   accessToken: string;

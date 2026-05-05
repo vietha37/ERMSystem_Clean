@@ -9,27 +9,29 @@ export function Sidebar() {
 
   const menuItemsByRole: Record<UserRole, Array<{ name: string; path: string }>> = {
     Admin: [
-      { name: "Dashboard", path: "/dashboard" },
-      { name: "Staff", path: "/staff" },
-      { name: "Patients", path: "/patients" },
-      { name: "Appointments", path: "/appointments" },
-      { name: "Medical Records", path: "/medical-records" },
-      { name: "Prescriptions", path: "/prescriptions" },
+      { name: "Tong quan", path: "/dashboard" },
+      { name: "Nhan su", path: "/staff" },
+      { name: "Benh nhan", path: "/patients" },
+      { name: "Lich hen", path: "/appointments" },
+      { name: "Ho so benh an", path: "/medical-records" },
+      { name: "Don thuoc", path: "/prescriptions" },
+      { name: "Thong bao", path: "/notifications" },
     ],
     Doctor: [
-      { name: "Dashboard", path: "/dashboard" },
-      { name: "Patients", path: "/patients" },
-      { name: "Appointments", path: "/appointments" },
-      { name: "Medical Records", path: "/medical-records" },
-      { name: "Prescriptions", path: "/prescriptions" },
+      { name: "Tong quan", path: "/dashboard" },
+      { name: "Benh nhan", path: "/patients" },
+      { name: "Lich hen", path: "/appointments" },
+      { name: "Ho so benh an", path: "/medical-records" },
+      { name: "Don thuoc", path: "/prescriptions" },
     ],
     Receptionist: [
-      { name: "Dashboard", path: "/dashboard" },
-      { name: "Patients", path: "/patients" },
-      { name: "Appointments", path: "/appointments" },
+      { name: "Tong quan", path: "/dashboard" },
+      { name: "Benh nhan", path: "/patients" },
+      { name: "Lich hen", path: "/appointments" },
+      { name: "Thong bao", path: "/notifications" },
     ],
     Patient: [
-      { name: "Patient Portal", path: "/portal" },
+      { name: "Cong thong tin benh nhan", path: "/portal" },
     ],
   };
 
@@ -38,9 +40,9 @@ export function Sidebar() {
   return (
     <aside className="fixed left-0 top-0 z-20 flex h-screen w-64 flex-col border-r border-gray-200 bg-white shadow-sm">
       <div className="border-b border-gray-100 p-6">
-        <h1 className="text-2xl font-bold text-blue-600">EMR System</h1>
+        <h1 className="text-2xl font-bold text-blue-600">ERM Hospital</h1>
         <p className="mt-1 text-xs font-medium uppercase tracking-wide text-gray-400">
-          {role ?? "Unknown Role"}
+          {role ?? "Khong xac dinh"}
         </p>
       </div>
 
@@ -61,7 +63,7 @@ export function Sidebar() {
           onClick={logout}
           className="w-full rounded-xl px-4 py-3 text-left font-medium text-red-500 transition-colors hover:bg-red-50"
         >
-          Logout
+          Dang xuat
         </button>
       </div>
     </aside>

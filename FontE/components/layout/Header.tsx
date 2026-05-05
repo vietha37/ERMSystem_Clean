@@ -139,9 +139,9 @@ export function Header() {
   return (
     <header className="relative z-20 h-20 bg-white/90 backdrop-blur-md border-b border-gray-100 flex items-center justify-between px-8 shadow-sm transition-all duration-300">
       <div>
-        <h2 className="text-xl font-bold text-gray-800 tracking-tight">Welcome back</h2>
+        <h2 className="text-xl font-bold text-gray-800 tracking-tight">Trung tam dieu hanh</h2>
         <p className="text-sm text-gray-500 font-medium">
-          {role ?? "User"} account{username ? ` - ${username}` : ""}
+          {role ?? "Nguoi dung"}{username ? ` - ${username}` : ""}
         </p>
       </div>
       <div className="flex items-center gap-5">
@@ -149,14 +149,14 @@ export function Header() {
           onClick={logout}
           className="text-sm font-bold text-red-500 bg-red-50 hover:bg-red-100 hover:text-red-600 px-4 py-2 rounded-xl transition-colors shadow-sm"
         >
-          Logout
+          Dang xuat
         </button>
 
         <div ref={notificationRef} className="relative z-30">
           <button
             onClick={handleToggleNotifications}
             className="p-2.5 rounded-full bg-gray-50 hover:bg-gray-100 relative text-gray-500 transition-colors shadow-sm"
-            aria-label="Notifications"
+            aria-label="Thong bao"
           >
             <span className="text-xl">🔔</span>
             {unreadCount > 0 && (
@@ -204,8 +204,8 @@ export function Header() {
             {(role ?? "U").charAt(0)}
           </div>
           <div className="hidden md:block text-left">
-            <p className="text-sm font-bold text-gray-800 leading-tight">{role ?? "User"}</p>
-            <p className="text-[11px] text-blue-600 font-bold uppercase tracking-wider">Authenticated</p>
+            <p className="text-sm font-bold text-gray-800 leading-tight">{role ?? "Nguoi dung"}</p>
+            <p className="text-[11px] text-blue-600 font-bold uppercase tracking-wider">Dang hoat dong</p>
           </div>
         </div>
       </div>

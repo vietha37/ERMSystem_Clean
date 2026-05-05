@@ -10,6 +10,9 @@ using Microsoft.IdentityModel.Tokens;
 using ERMSystem.Application.DTOs;
 using ERMSystem.Application.Interfaces;
 using ERMSystem.Domain.Entities;
+using ERMSystem.Infrastructure.HospitalData;
+using ERMSystem.Infrastructure.HospitalData.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace ERMSystem.Infrastructure.Services
 {
@@ -17,15 +20,18 @@ namespace ERMSystem.Infrastructure.Services
     {
         private readonly IUserRepository _userRepository;
         private readonly IPatientRepository _patientRepository;
+        private readonly HospitalDbContext _hospitalDbContext;
         private readonly IConfiguration _configuration;
 
         public AuthService(
             IUserRepository userRepository,
             IPatientRepository patientRepository,
+            HospitalDbContext hospitalDbContext,
             IConfiguration configuration)
         {
             _userRepository = userRepository;
             _patientRepository = patientRepository;
+            _hospitalDbContext = hospitalDbContext;
             _configuration = configuration;
         }
 
@@ -83,9 +89,11 @@ namespace ERMSystem.Infrastructure.Services
             try
             {
                 await _patientRepository.AddAsync(patient);
+                await EnsureHospitalPatientProjectionAsync(user, patient);
             }
             catch
             {
+                await TryDeleteLegacyPatientAsync(patient);
                 await _userRepository.DeleteAsync(user);
                 throw;
             }
@@ -98,6 +106,15 @@ namespace ERMSystem.Infrastructure.Services
             var user = await _userRepository.GetByUsernameAsync(loginDto.Username);
             if (user == null || !BCrypt.Net.BCrypt.Verify(loginDto.Password, user.PasswordHash))
                 throw new UnauthorizedAccessException("Invalid username or password.");
+
+            if (user.Role == AppRole.Patient)
+            {
+                var patient = await _patientRepository.GetByAppUserIdAsync(user.Id);
+                if (patient == null)
+                    throw new UnauthorizedAccessException("Patient profile not found.");
+
+                await EnsureHospitalPatientProjectionAsync(user, patient);
+            }
 
             return await BuildAuthResponseAsync(user);
         }
@@ -247,5 +264,122 @@ namespace ERMSystem.Infrastructure.Services
 
             return Guid.TryParse(rawUserId, out userId);
         }
+
+        private async Task EnsureHospitalPatientProjectionAsync(AppUser user, Patient legacyPatient)
+        {
+            var nowUtc = DateTime.UtcNow;
+            var normalizedPhone = string.IsNullOrWhiteSpace(legacyPatient.Phone) ? null : legacyPatient.Phone.Trim();
+
+            var hospitalUser = await _hospitalDbContext.Users
+                .FirstOrDefaultAsync(x => x.Id == user.Id);
+
+            if (hospitalUser == null)
+            {
+                hospitalUser = new HospitalUserEntity
+                {
+                    Id = user.Id,
+                    Username = user.Username.Trim(),
+                    PasswordHash = user.PasswordHash,
+                    PrimaryRoleCode = AppRole.Patient,
+                    IsActive = true,
+                    CreatedAtUtc = nowUtc,
+                    UpdatedAtUtc = nowUtc
+                };
+
+                _hospitalDbContext.Users.Add(hospitalUser);
+            }
+            else
+            {
+                hospitalUser.Username = user.Username.Trim();
+                hospitalUser.PasswordHash = user.PasswordHash;
+                hospitalUser.PrimaryRoleCode = AppRole.Patient;
+                hospitalUser.IsActive = true;
+                hospitalUser.UpdatedAtUtc = nowUtc;
+            }
+
+            var hasUserRole = await _hospitalDbContext.UserRoles.AnyAsync(
+                x => x.UserId == user.Id && x.RoleCode == AppRole.Patient);
+
+            if (!hasUserRole)
+            {
+                _hospitalDbContext.UserRoles.Add(new HospitalUserRoleEntity
+                {
+                    UserId = user.Id,
+                    RoleCode = AppRole.Patient,
+                    GrantedByUserId = null
+                });
+            }
+
+            var patientAccount = await _hospitalDbContext.PatientAccounts
+                .Include(x => x.Patient)
+                .FirstOrDefaultAsync(x => x.UserId == user.Id);
+
+            HospitalPatientEntity hospitalPatient;
+            if (patientAccount != null)
+            {
+                hospitalPatient = patientAccount.Patient;
+            }
+            else
+            {
+                hospitalPatient = await _hospitalDbContext.Patients
+                    .Where(x => x.DeletedAtUtc == null)
+                    .Where(x => x.FullName == legacyPatient.FullName.Trim())
+                    .Where(x => x.DateOfBirth == DateOnly.FromDateTime(legacyPatient.DateOfBirth))
+                    .Where(x => normalizedPhone != null && x.Phone == normalizedPhone)
+                    .Where(x => !_hospitalDbContext.PatientAccounts.Any(pa => pa.PatientId == x.Id))
+                    .OrderByDescending(x => x.UpdatedAtUtc)
+                    .FirstOrDefaultAsync()
+                    ?? new HospitalPatientEntity
+                    {
+                        Id = Guid.NewGuid(),
+                        MedicalRecordNumber = GenerateMedicalRecordNumber(nowUtc),
+                        CreatedAtUtc = nowUtc
+                    };
+
+                if (_hospitalDbContext.Entry(hospitalPatient).State == EntityState.Detached)
+                {
+                    _hospitalDbContext.Patients.Add(hospitalPatient);
+                }
+            }
+
+            hospitalPatient.FullName = legacyPatient.FullName.Trim();
+            hospitalPatient.DateOfBirth = DateOnly.FromDateTime(legacyPatient.DateOfBirth);
+            hospitalPatient.Gender = legacyPatient.Gender.Trim();
+            hospitalPatient.Phone = normalizedPhone;
+            hospitalPatient.AddressLine1 = string.IsNullOrWhiteSpace(legacyPatient.Address) ? null : legacyPatient.Address.Trim();
+            hospitalPatient.Nationality ??= "Viet Nam";
+            hospitalPatient.UpdatedAtUtc = nowUtc;
+
+            if (patientAccount == null)
+            {
+                _hospitalDbContext.PatientAccounts.Add(new HospitalPatientAccountEntity
+                {
+                    PatientId = hospitalPatient.Id,
+                    UserId = user.Id,
+                    ActivatedAtUtc = nowUtc,
+                    PortalStatus = "Active"
+                });
+            }
+            else
+            {
+                patientAccount.PortalStatus = "Active";
+            }
+
+            await _hospitalDbContext.SaveChangesAsync();
+        }
+
+        private async Task TryDeleteLegacyPatientAsync(Patient patient)
+        {
+            try
+            {
+                await _patientRepository.DeleteAsync(patient);
+            }
+            catch
+            {
+            }
+        }
+
+        private static string GenerateMedicalRecordNumber(DateTime nowUtc)
+            => $"MRN-{nowUtc:yyyyMMddHHmmss}-{Random.Shared.Next(1000, 9999)}";
     }
 }
