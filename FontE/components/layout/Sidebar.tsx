@@ -10,6 +10,7 @@ export function Sidebar() {
   const menuItemsByRole: Record<UserRole, Array<{ name: string; path: string }>> = {
     Admin: [
       { name: "Tong quan", path: "/dashboard" },
+      { name: "Worklist bac si", path: "/doctor-worklist" },
       { name: "Nhan su", path: "/staff" },
       { name: "Benh nhan", path: "/patients" },
       { name: "Lich hen", path: "/appointments" },
@@ -19,6 +20,7 @@ export function Sidebar() {
     ],
     Doctor: [
       { name: "Tong quan", path: "/dashboard" },
+      { name: "Worklist bac si", path: "/doctor-worklist" },
       { name: "Benh nhan", path: "/patients" },
       { name: "Lich hen", path: "/appointments" },
       { name: "Ho so benh an", path: "/medical-records" },
@@ -26,6 +28,7 @@ export function Sidebar() {
     ],
     Receptionist: [
       { name: "Tong quan", path: "/dashboard" },
+      { name: "Worklist bac si", path: "/doctor-worklist" },
       { name: "Benh nhan", path: "/patients" },
       { name: "Lich hen", path: "/appointments" },
       { name: "Thong bao", path: "/notifications" },

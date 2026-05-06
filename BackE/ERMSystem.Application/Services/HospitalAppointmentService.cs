@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using ERMSystem.Application.DTOs;
+using ERMSystem.Application.DTOs.Common;
 using ERMSystem.Application.Interfaces;
 
 namespace ERMSystem.Application.Services
@@ -166,6 +167,88 @@ namespace ERMSystem.Application.Services
             };
         }
 
+        public Task<PaginatedResult<HospitalAppointmentWorklistItemDto>> GetWorklistAsync(
+            HospitalAppointmentWorklistRequestDto request,
+            CancellationToken ct = default)
+            => _hospitalAppointmentRepository.GetWorklistAsync(request, ct);
+
+        public async Task<HospitalAppointmentWorklistItemDto?> CheckInAsync(
+            Guid appointmentId,
+            HospitalAppointmentCheckInRequestDto request,
+            CancellationToken ct = default)
+        {
+            var appointment = await _hospitalAppointmentRepository.GetAppointmentAggregateAsync(appointmentId, ct);
+            if (appointment == null)
+            {
+                return null;
+            }
+
+            if (appointment.Status is "Cancelled" or "Completed")
+            {
+                throw new InvalidOperationException("Lich hen nay khong the check-in o trang thai hien tai.");
+            }
+
+            if (appointment.CheckInId == null)
+            {
+                await _hospitalAppointmentRepository.AddCheckInAsync(new HospitalAppointmentCheckInCommand
+                {
+                    CheckInId = Guid.NewGuid(),
+                    AppointmentId = appointment.AppointmentId,
+                    CheckInTimeUtc = DateTime.UtcNow,
+                    CounterLabel = string.IsNullOrWhiteSpace(request.CounterLabel) ? null : request.CounterLabel.Trim(),
+                    CheckInStatus = "CheckedIn"
+                }, ct);
+            }
+
+            if (string.IsNullOrWhiteSpace(appointment.QueueNumber))
+            {
+                var nextSequence = await _hospitalAppointmentRepository.GetNextQueueSequenceAsync(appointment.AppointmentStartUtc, ct);
+                await _hospitalAppointmentRepository.AddQueueTicketAsync(new HospitalAppointmentQueueTicketCreateCommand
+                {
+                    QueueTicketId = Guid.NewGuid(),
+                    AppointmentId = appointment.AppointmentId,
+                    QueueNumber = $"Q{nextSequence:000}",
+                    QueueStatus = "Waiting"
+                }, ct);
+            }
+
+            await _hospitalAppointmentRepository.UpdateStatusAsync(appointment.AppointmentId, "CheckedIn", ct);
+            await _hospitalAppointmentRepository.SaveChangesAsync(ct);
+
+            var refreshed = await _hospitalAppointmentRepository.GetAppointmentAggregateAsync(appointmentId, ct);
+            return refreshed == null ? null : MapAggregateToWorklistItem(refreshed);
+        }
+
+        public async Task<HospitalAppointmentWorklistItemDto?> UpdateStatusAsync(
+            Guid appointmentId,
+            HospitalAppointmentStatusUpdateRequestDto request,
+            CancellationToken ct = default)
+        {
+            var normalizedStatus = request.Status.Trim();
+            var allowedStatuses = new[] { "Scheduled", "CheckedIn", "Completed", "Cancelled" };
+            if (!allowedStatuses.Contains(normalizedStatus, StringComparer.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("Trang thai lich hen khong hop le.");
+            }
+
+            var appointment = await _hospitalAppointmentRepository.GetAppointmentAggregateAsync(appointmentId, ct);
+            if (appointment == null)
+            {
+                return null;
+            }
+
+            if (appointment.Status == "Cancelled" && !string.Equals(normalizedStatus, "Cancelled", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("Lich hen da huy khong the chuyen sang trang thai khac.");
+            }
+
+            await _hospitalAppointmentRepository.UpdateStatusAsync(appointmentId, normalizedStatus, ct);
+            await _hospitalAppointmentRepository.SaveChangesAsync(ct);
+
+            var refreshed = await _hospitalAppointmentRepository.GetAppointmentAggregateAsync(appointmentId, ct);
+            return refreshed == null ? null : MapAggregateToWorklistItem(refreshed);
+        }
+
         private static TimeZoneInfo ResolveClinicTimeZone()
         {
             try
@@ -181,6 +264,11 @@ namespace ERMSystem.Application.Services
         private static DateTime ConvertLocalClinicTimeToUtc(DateTime localDateTime)
         {
             return TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(localDateTime, DateTimeKind.Unspecified), ResolveClinicTimeZone());
+        }
+
+        private static DateTime ConvertUtcToClinicLocal(DateTime utcDateTime)
+        {
+            return TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utcDateTime, DateTimeKind.Utc), ResolveClinicTimeZone());
         }
 
         private static string GenerateMedicalRecordNumber(DateTime nowUtc)
@@ -199,6 +287,38 @@ namespace ERMSystem.Application.Services
 
             var merged = string.Join(" | ", parts);
             return string.IsNullOrWhiteSpace(merged) ? null : merged;
+        }
+
+        private static HospitalAppointmentWorklistItemDto MapAggregateToWorklistItem(HospitalAppointmentAggregateSnapshot aggregate)
+        {
+            return new HospitalAppointmentWorklistItemDto
+            {
+                AppointmentId = aggregate.AppointmentId,
+                AppointmentNumber = aggregate.AppointmentNumber,
+                PatientId = aggregate.PatientId,
+                PatientName = aggregate.PatientName,
+                MedicalRecordNumber = aggregate.MedicalRecordNumber,
+                PatientPhone = aggregate.PatientPhone,
+                DoctorProfileId = aggregate.DoctorProfileId,
+                DoctorName = aggregate.DoctorName,
+                SpecialtyName = aggregate.SpecialtyName,
+                ClinicName = aggregate.ClinicName,
+                FloorLabel = aggregate.FloorLabel,
+                RoomLabel = aggregate.RoomLabel,
+                AppointmentType = aggregate.AppointmentType,
+                BookingChannel = aggregate.BookingChannel,
+                Status = aggregate.Status,
+                AppointmentStartLocal = ConvertUtcToClinicLocal(aggregate.AppointmentStartUtc),
+                AppointmentEndLocal = aggregate.AppointmentEndUtc.HasValue
+                    ? ConvertUtcToClinicLocal(aggregate.AppointmentEndUtc.Value)
+                    : null,
+                ChiefComplaint = aggregate.ChiefComplaint,
+                CounterLabel = aggregate.CounterLabel,
+                QueueNumber = aggregate.QueueNumber,
+                CheckInTimeLocal = aggregate.CheckInTimeUtc.HasValue
+                    ? ConvertUtcToClinicLocal(aggregate.CheckInTimeUtc.Value)
+                    : null
+            };
         }
     }
 }

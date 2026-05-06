@@ -35,6 +35,15 @@ public class HospitalDbContext : DbContext
     public DbSet<HospitalAppointmentEntity> Appointments => Set<HospitalAppointmentEntity>();
     public DbSet<HospitalCheckInEntity> CheckIns => Set<HospitalCheckInEntity>();
     public DbSet<HospitalQueueTicketEntity> QueueTickets => Set<HospitalQueueTicketEntity>();
+    public DbSet<HospitalEncounterEntity> Encounters => Set<HospitalEncounterEntity>();
+    public DbSet<HospitalVitalSignEntity> VitalSigns => Set<HospitalVitalSignEntity>();
+    public DbSet<HospitalDiagnosisEntity> Diagnoses => Set<HospitalDiagnosisEntity>();
+    public DbSet<HospitalClinicalNoteEntity> ClinicalNotes => Set<HospitalClinicalNoteEntity>();
+    public DbSet<HospitalOrderHeaderEntity> OrderHeaders => Set<HospitalOrderHeaderEntity>();
+    public DbSet<HospitalMedicineEntity> Medicines => Set<HospitalMedicineEntity>();
+    public DbSet<HospitalPrescriptionEntity> Prescriptions => Set<HospitalPrescriptionEntity>();
+    public DbSet<HospitalPrescriptionItemEntity> PrescriptionItems => Set<HospitalPrescriptionItemEntity>();
+    public DbSet<HospitalDispensingEntity> Dispensings => Set<HospitalDispensingEntity>();
 
     public DbSet<HospitalServiceCatalogEntity> ServiceCatalog => Set<HospitalServiceCatalogEntity>();
     public DbSet<HospitalOutboxMessageEntity> OutboxMessages => Set<HospitalOutboxMessageEntity>();
@@ -51,6 +60,12 @@ public class HospitalDbContext : DbContext
         modelBuilder.Entity<HospitalDoctorProfileEntity>().Property(x => x.ConsultationFee).HasPrecision(18, 2);
         modelBuilder.Entity<HospitalPatientInsurancePolicyEntity>().Property(x => x.CoveragePercent).HasPrecision(5, 2);
         modelBuilder.Entity<HospitalServiceCatalogEntity>().Property(x => x.UnitPrice).HasPrecision(18, 2);
+        modelBuilder.Entity<HospitalVitalSignEntity>().Property(x => x.HeightCm).HasPrecision(6, 2);
+        modelBuilder.Entity<HospitalVitalSignEntity>().Property(x => x.WeightKg).HasPrecision(6, 2);
+        modelBuilder.Entity<HospitalVitalSignEntity>().Property(x => x.TemperatureC).HasPrecision(4, 1);
+        modelBuilder.Entity<HospitalVitalSignEntity>().Property(x => x.OxygenSaturation).HasPrecision(5, 2);
+        modelBuilder.Entity<HospitalPrescriptionItemEntity>().Property(x => x.Quantity).HasPrecision(18, 2);
+        modelBuilder.Entity<HospitalPrescriptionItemEntity>().Property(x => x.UnitPrice).HasPrecision(18, 2);
 
         modelBuilder.Entity<HospitalUserRoleEntity>().HasKey(x => new { x.UserId, x.RoleCode });
 
@@ -220,6 +235,102 @@ public class HospitalDbContext : DbContext
             .HasOne(x => x.Appointment)
             .WithMany(x => x.QueueTickets)
             .HasForeignKey(x => x.AppointmentId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<HospitalEncounterEntity>()
+            .HasOne(x => x.Patient)
+            .WithMany()
+            .HasForeignKey(x => x.PatientId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<HospitalEncounterEntity>()
+            .HasOne(x => x.Appointment)
+            .WithMany()
+            .HasForeignKey(x => x.AppointmentId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<HospitalEncounterEntity>()
+            .HasOne(x => x.DoctorProfile)
+            .WithMany()
+            .HasForeignKey(x => x.DoctorProfileId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<HospitalEncounterEntity>()
+            .HasOne(x => x.Clinic)
+            .WithMany()
+            .HasForeignKey(x => x.ClinicId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<HospitalVitalSignEntity>()
+            .HasOne(x => x.Encounter)
+            .WithMany(x => x.VitalSigns)
+            .HasForeignKey(x => x.EncounterId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<HospitalVitalSignEntity>()
+            .HasOne(x => x.RecordedByUser)
+            .WithMany()
+            .HasForeignKey(x => x.RecordedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<HospitalDiagnosisEntity>()
+            .HasOne(x => x.Encounter)
+            .WithMany(x => x.Diagnoses)
+            .HasForeignKey(x => x.EncounterId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<HospitalClinicalNoteEntity>()
+            .HasOne(x => x.Encounter)
+            .WithMany(x => x.ClinicalNotes)
+            .HasForeignKey(x => x.EncounterId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<HospitalClinicalNoteEntity>()
+            .HasOne(x => x.AuthoredByUser)
+            .WithMany()
+            .HasForeignKey(x => x.AuthoredByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<HospitalOrderHeaderEntity>()
+            .HasOne(x => x.Encounter)
+            .WithMany()
+            .HasForeignKey(x => x.EncounterId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<HospitalOrderHeaderEntity>()
+            .HasOne(x => x.OrderedByUser)
+            .WithMany()
+            .HasForeignKey(x => x.OrderedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<HospitalPrescriptionEntity>()
+            .HasOne(x => x.OrderHeader)
+            .WithMany()
+            .HasForeignKey(x => x.OrderHeaderId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<HospitalPrescriptionItemEntity>()
+            .HasOne(x => x.Prescription)
+            .WithMany(x => x.PrescriptionItems)
+            .HasForeignKey(x => x.PrescriptionId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<HospitalPrescriptionItemEntity>()
+            .HasOne(x => x.Medicine)
+            .WithMany(x => x.PrescriptionItems)
+            .HasForeignKey(x => x.MedicineId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<HospitalDispensingEntity>()
+            .HasOne(x => x.Prescription)
+            .WithMany(x => x.Dispensings)
+            .HasForeignKey(x => x.PrescriptionId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<HospitalDispensingEntity>()
+            .HasOne(x => x.DispensedByUser)
+            .WithMany()
+            .HasForeignKey(x => x.DispensedByUserId)
             .OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<HospitalNotificationDeliveryEntity>()

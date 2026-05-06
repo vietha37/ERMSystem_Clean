@@ -163,6 +163,268 @@ export type HospitalPatientPortalOverview = {
   recentAppointments: HospitalPatientPortalAppointment[];
 };
 
+export type HospitalAppointmentWorklistStatus =
+  | "Scheduled"
+  | "CheckedIn"
+  | "Completed"
+  | "Cancelled";
+
+export type HospitalAppointmentWorklistItem = {
+  appointmentId: Id;
+  appointmentNumber: string;
+  patientId: Id;
+  patientName: string;
+  medicalRecordNumber: string;
+  patientPhone?: string | null;
+  doctorProfileId: Id;
+  doctorName: string;
+  specialtyName: string;
+  clinicName: string;
+  floorLabel?: string | null;
+  roomLabel?: string | null;
+  appointmentType: string;
+  bookingChannel: string;
+  status: HospitalAppointmentWorklistStatus;
+  appointmentStartLocal: string;
+  appointmentEndLocal?: string | null;
+  chiefComplaint?: string | null;
+  counterLabel?: string | null;
+  queueNumber?: string | null;
+  checkInTimeLocal?: string | null;
+};
+
+export type HospitalAppointmentWorklistQuery = {
+  pageNumber?: number;
+  pageSize?: number;
+  status?: HospitalAppointmentWorklistStatus | "All";
+  appointmentDate?: string;
+  textSearch?: string;
+};
+
+export type HospitalAppointmentCheckInPayload = {
+  counterLabel?: string;
+};
+
+export type HospitalEncounterStatus = "InProgress" | "Finalized";
+
+export type HospitalEncounterSummary = {
+  encounterId: Id;
+  encounterNumber: string;
+  appointmentId?: Id | null;
+  appointmentNumber?: string | null;
+  patientId: Id;
+  patientName: string;
+  medicalRecordNumber: string;
+  doctorProfileId: Id;
+  doctorName: string;
+  specialtyName: string;
+  clinicName: string;
+  appointmentStartLocal?: string | null;
+  encounterStatus: HospitalEncounterStatus;
+  primaryDiagnosisName?: string | null;
+  summary?: string | null;
+  startedAtLocal: string;
+  endedAtLocal?: string | null;
+  updatedAtLocal: string;
+};
+
+export type HospitalEncounterDetail = HospitalEncounterSummary & {
+  encounterType: string;
+  diagnosisCode?: string | null;
+  diagnosisType?: string | null;
+  subjective?: string | null;
+  objective?: string | null;
+  assessment?: string | null;
+  carePlan?: string | null;
+  heightCm?: number | null;
+  weightKg?: number | null;
+  temperatureC?: number | null;
+  pulseRate?: number | null;
+  respiratoryRate?: number | null;
+  systolicBp?: number | null;
+  diastolicBp?: number | null;
+  oxygenSaturation?: number | null;
+};
+
+export type HospitalEncounterEligibleAppointment = {
+  appointmentId: Id;
+  appointmentNumber: string;
+  patientId: Id;
+  patientName: string;
+  medicalRecordNumber: string;
+  doctorProfileId: Id;
+  doctorName: string;
+  specialtyName: string;
+  clinicName: string;
+  appointmentStartLocal: string;
+  appointmentStatus: string;
+  existingEncounterId?: Id | null;
+  existingEncounterNumber?: string | null;
+};
+
+export type HospitalEncounterWorklistQuery = {
+  pageNumber?: number;
+  pageSize?: number;
+  encounterStatus?: HospitalEncounterStatus | "All";
+  appointmentDate?: string;
+  textSearch?: string;
+};
+
+export type CreateHospitalEncounterPayload = {
+  appointmentId: Id;
+  diagnosisName: string;
+  diagnosisCode?: string;
+  diagnosisType?: string;
+  encounterStatus?: HospitalEncounterStatus;
+  summary?: string;
+  subjective?: string;
+  objective?: string;
+  assessment?: string;
+  carePlan?: string;
+  heightCm?: number | null;
+  weightKg?: number | null;
+  temperatureC?: number | null;
+  pulseRate?: number | null;
+  respiratoryRate?: number | null;
+  systolicBp?: number | null;
+  diastolicBp?: number | null;
+  oxygenSaturation?: number | null;
+};
+
+export type UpdateHospitalEncounterPayload = Omit<
+  CreateHospitalEncounterPayload,
+  "appointmentId"
+>;
+
+export type HospitalPrescriptionStatus = "Issued" | "Dispensed" | "Cancelled";
+
+export type HospitalMedicineCatalog = {
+  medicineId: Id;
+  drugCode: string;
+  name: string;
+  genericName?: string | null;
+  strength?: string | null;
+  dosageForm?: string | null;
+  unit?: string | null;
+  isControlled: boolean;
+};
+
+export type HospitalPrescriptionSummary = {
+  prescriptionId: Id;
+  prescriptionNumber: string;
+  status: HospitalPrescriptionStatus;
+  encounterId: Id;
+  encounterNumber: string;
+  patientId: Id;
+  patientName: string;
+  medicalRecordNumber: string;
+  doctorProfileId: Id;
+  doctorName: string;
+  specialtyName: string;
+  clinicName: string;
+  primaryDiagnosisName?: string | null;
+  totalItems: number;
+  createdAtLocal: string;
+  notes?: string | null;
+};
+
+export type HospitalPrescriptionItem = {
+  prescriptionItemId: Id;
+  medicineId: Id;
+  drugCode: string;
+  medicineName: string;
+  genericName?: string | null;
+  strength?: string | null;
+  dosageForm?: string | null;
+  unit?: string | null;
+  doseInstruction: string;
+  route?: string | null;
+  frequency?: string | null;
+  durationDays?: number | null;
+  quantity: number;
+  unitPrice?: number | null;
+};
+
+export type HospitalPrescriptionDetail = HospitalPrescriptionSummary & {
+  items: HospitalPrescriptionItem[];
+};
+
+export type HospitalPrescriptionEligibleEncounter = {
+  encounterId: Id;
+  encounterNumber: string;
+  patientId: Id;
+  patientName: string;
+  medicalRecordNumber: string;
+  doctorProfileId: Id;
+  doctorName: string;
+  specialtyName: string;
+  clinicName: string;
+  encounterStatus: string;
+  primaryDiagnosisName?: string | null;
+  startedAtLocal: string;
+  existingPrescriptionId?: Id | null;
+  existingPrescriptionNumber?: string | null;
+};
+
+export type HospitalPrescriptionWorklistQuery = {
+  pageNumber?: number;
+  pageSize?: number;
+  status?: HospitalPrescriptionStatus | "All";
+  textSearch?: string;
+};
+
+export type CreateHospitalPrescriptionItemPayload = {
+  medicineId: Id;
+  doseInstruction: string;
+  route?: string;
+  frequency?: string;
+  durationDays?: number | null;
+  quantity: number;
+};
+
+export type CreateHospitalPrescriptionPayload = {
+  encounterId: Id;
+  status?: HospitalPrescriptionStatus;
+  notes?: string;
+  items: CreateHospitalPrescriptionItemPayload[];
+};
+
+export type HospitalDoctorWorklistItem = {
+  appointmentId: Id;
+  appointmentNumber: string;
+  appointmentStatus: string;
+  appointmentStartLocal: string;
+  patientId: Id;
+  patientName: string;
+  medicalRecordNumber: string;
+  doctorProfileId: Id;
+  doctorName: string;
+  specialtyName: string;
+  clinicName: string;
+  encounterId?: Id | null;
+  encounterNumber?: string | null;
+  encounterStatus?: string | null;
+  primaryDiagnosisName?: string | null;
+  prescriptionId?: Id | null;
+  prescriptionNumber?: string | null;
+  workflowStage: string;
+};
+
+export type HospitalDoctorWorklistResponse = {
+  workDate: string;
+  doctorProfileId?: Id | null;
+  doctorName?: string | null;
+  specialtyName?: string | null;
+  isDoctorResolved: boolean;
+  resolutionMessage?: string | null;
+  totalAppointments: number;
+  checkedInAppointments: number;
+  inProgressEncounters: number;
+  finalizedEncounters: number;
+  issuedPrescriptions: number;
+  items: HospitalDoctorWorklistItem[];
+};
+
 export type AuthResponse = {
   token: string;
   accessToken: string;

@@ -22,9 +22,9 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
       }
 
       const allowedRoutesByRole: Record<UserRole, string[]> = {
-        Admin: ['/dashboard', '/staff', '/patients', '/appointments', '/medical-records', '/prescriptions', '/notifications'],
-        Doctor: ['/dashboard', '/patients', '/appointments', '/medical-records', '/prescriptions'],
-        Receptionist: ['/dashboard', '/patients', '/appointments', '/notifications'],
+        Admin: ['/dashboard', '/doctor-worklist', '/staff', '/patients', '/appointments', '/medical-records', '/prescriptions', '/notifications'],
+        Doctor: ['/dashboard', '/doctor-worklist', '/patients', '/appointments', '/medical-records', '/prescriptions'],
+        Receptionist: ['/dashboard', '/doctor-worklist', '/patients', '/appointments', '/notifications'],
         Patient: ['/portal'],
       };
 

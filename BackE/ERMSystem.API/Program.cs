@@ -102,8 +102,14 @@ builder.Services.AddScoped<IHospitalCatalogRepository, HospitalCatalogRepository
 builder.Services.AddScoped<IHospitalCatalogService, HospitalCatalogService>();
 builder.Services.AddScoped<IHospitalDoctorRepository, HospitalDoctorRepository>();
 builder.Services.AddScoped<IHospitalDoctorService, HospitalDoctorService>();
+builder.Services.AddScoped<IHospitalDoctorWorklistRepository, HospitalDoctorWorklistRepository>();
+builder.Services.AddScoped<IHospitalDoctorWorklistService, HospitalDoctorWorklistService>();
 builder.Services.AddScoped<IHospitalAppointmentRepository, HospitalAppointmentRepository>();
 builder.Services.AddScoped<IHospitalAppointmentService, HospitalAppointmentService>();
+builder.Services.AddScoped<IHospitalEncounterRepository, HospitalEncounterRepository>();
+builder.Services.AddScoped<IHospitalEncounterService, HospitalEncounterService>();
+builder.Services.AddScoped<IHospitalPrescriptionRepository, HospitalPrescriptionRepository>();
+builder.Services.AddScoped<IHospitalPrescriptionService, HospitalPrescriptionService>();
 builder.Services.AddScoped<IHospitalPatientPortalRepository, HospitalPatientPortalRepository>();
 builder.Services.AddScoped<IHospitalPatientPortalService, HospitalPatientPortalService>();
 builder.Services.AddScoped<IHospitalNotificationDeliveryRepository, HospitalNotificationDeliveryRepository>();

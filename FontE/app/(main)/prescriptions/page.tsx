@@ -1,447 +1,758 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Modal } from '@/components/ui/Modal';
-import { prescriptionService } from '@/services/prescriptionService';
-import { medicalRecordService } from '@/services/medicalRecordService';
-import { medicineService } from '@/services/medicineService';
-import { appointmentService } from '@/services/appointmentService';
-import { patientService } from '@/services/patientService';
-import { doctorService } from '@/services/doctorService';
-import { getApiErrorMessage } from '@/services/error';
-import { useAuth } from '@/hooks/useAuth';
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { Modal } from "@/components/ui/Modal";
+import { getApiErrorMessage } from "@/services/error";
+import { hospitalPrescriptionService } from "@/services/hospitalPrescriptionService";
 import {
-  Appointment,
-  Doctor,
-  MedicalRecord,
-  Medicine,
-  Patient,
-  Prescription,
-} from '@/services/types';
-import toast from 'react-hot-toast';
+  CreateHospitalPrescriptionItemPayload,
+  HospitalMedicineCatalog,
+  HospitalPrescriptionDetail,
+  HospitalPrescriptionEligibleEncounter,
+  HospitalPrescriptionStatus,
+  HospitalPrescriptionSummary,
+} from "@/services/types";
+import { useAuth } from "@/hooks/useAuth";
+import toast from "react-hot-toast";
 
-interface PrescriptionFormItem {
+const STATUS_OPTIONS: Array<{
+  value: HospitalPrescriptionStatus | "All";
+  label: string;
+}> = [
+  { value: "All", label: "Tat ca" },
+  { value: "Issued", label: "Da phat hanh" },
+  { value: "Dispensed", label: "Da cap thuoc" },
+  { value: "Cancelled", label: "Da huy" },
+];
+
+type PrescriptionItemForm = {
   medicineId: string;
-  dosage: string;
-  duration: string;
+  doseInstruction: string;
+  route: string;
+  frequency: string;
+  durationDays: string;
+  quantity: string;
+};
+
+const EMPTY_ITEM: PrescriptionItemForm = {
+  medicineId: "",
+  doseInstruction: "",
+  route: "",
+  frequency: "",
+  durationDays: "",
+  quantity: "1",
+};
+
+function formatDateTime(value?: string | null): string {
+  if (!value) {
+    return "--";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "--";
+  }
+
+  return date.toLocaleString("vi-VN");
+}
+
+function getStatusLabel(status: HospitalPrescriptionStatus): string {
+  switch (status) {
+    case "Issued":
+      return "Da phat hanh";
+    case "Dispensed":
+      return "Da cap thuoc";
+    case "Cancelled":
+      return "Da huy";
+    default:
+      return status;
+  }
+}
+
+function getStatusClass(status: HospitalPrescriptionStatus): string {
+  switch (status) {
+    case "Issued":
+      return "border border-cyan-200 bg-cyan-50 text-cyan-700";
+    case "Dispensed":
+      return "border border-emerald-200 bg-emerald-50 text-emerald-700";
+    case "Cancelled":
+      return "border border-rose-200 bg-rose-50 text-rose-700";
+    default:
+      return "border border-slate-200 bg-slate-100 text-slate-700";
+  }
+}
+
+function buildCreateItems(items: PrescriptionItemForm[]): CreateHospitalPrescriptionItemPayload[] {
+  return items
+    .filter(
+      (item) =>
+        item.medicineId &&
+        item.doseInstruction.trim() &&
+        item.quantity.trim()
+    )
+    .map((item) => ({
+      medicineId: item.medicineId,
+      doseInstruction: item.doseInstruction.trim(),
+      route: item.route.trim() || undefined,
+      frequency: item.frequency.trim() || undefined,
+      durationDays: item.durationDays.trim() ? Number(item.durationDays) : undefined,
+      quantity: Number(item.quantity),
+    }));
 }
 
 export default function PrescriptionsPage() {
   const { role } = useAuth();
-  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
-  const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([]);
-  const [medicines, setMedicines] = useState<Medicine[]>([]);
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [doctors, setDoctors] = useState<Doctor[]>([]);
-
+  const [prescriptions, setPrescriptions] = useState<HospitalPrescriptionSummary[]>([]);
+  const [eligibleEncounters, setEligibleEncounters] = useState<
+    HospitalPrescriptionEligibleEncounter[]
+  >([]);
+  const [medicines, setMedicines] = useState<HospitalMedicineCatalog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  // Modals state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<HospitalPrescriptionStatus | "All">(
+    "All"
+  );
+  const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null);
-
-  // Pagination State
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10;
-  const totalPages = Math.ceil((prescriptions?.length || 0) / pageSize);
-
-  // Form State
-  const [selectedMedicalRecordId, setSelectedMedicalRecordId] = useState('');
-  const [prescriptionItems, setPrescriptionItems] = useState<PrescriptionFormItem[]>([
-    { medicineId: '', dosage: '', duration: '' }
+  const [selectedPrescription, setSelectedPrescription] =
+    useState<HospitalPrescriptionDetail | null>(null);
+  const [selectedEncounterId, setSelectedEncounterId] = useState("");
+  const [notes, setNotes] = useState("");
+  const [prescriptionItems, setPrescriptionItems] = useState<PrescriptionItemForm[]>([
+    EMPTY_ITEM,
   ]);
 
-  const fetchData = async () => {
-    setIsLoading(true);
-    try {
-      const [pre, rec, med, app, pts, doc] = await Promise.all([
-        prescriptionService.getAll(1, 100),
-        medicalRecordService.getAll(1, 100),
-        medicineService.getAll(1, 100),
-        appointmentService.getAll(1, 100),
-        patientService.getAll(1, 100),
-        doctorService.getAll(1, 100),
-      ]);
-
-      setMedicines(med.items);
-      setMedicalRecords(rec.items);
-      setAppointments(app.items);
-      setPatients(pts.items);
-      setDoctors(doc.items);
-      setPrescriptions(pre.items);
-    } catch (error: unknown) {
-      toast.error(getApiErrorMessage(error, "Failed to load prescriptions data."));
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+      setPageNumber(1);
+    }, 400);
 
-  // Helpers
-  const getRecord = (id: string) => medicalRecords.find(r => r.id === id);
-  const getAppt = (id: string) => appointments.find(a => a.id === id);
-  const getPatientName = (id: string) => {
-    const patient = patients.find((entry) => entry.id === id);
-    return patient ? patient.fullName : 'Unknown';
-  };
-  const getDoctorName = (id: string) => {
-    const doctor = doctors.find((entry) => entry.id === id);
-    return doctor ? `Dr. ${doctor.fullName}` : 'Unknown';
-  };
-  const getMedicineName = (id: string) => {
-    const medicine = medicines.find((entry) => entry.id === id);
-    return medicine ? medicine.name : 'Unknown';
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
+
+  const fetchData = useCallback(
+    async (showRefreshState = false) => {
+      if (showRefreshState) {
+        setIsRefreshing(true);
+      } else {
+        setIsLoading(true);
+      }
+
+      try {
+        const [worklist, encounters, catalog] = await Promise.all([
+          hospitalPrescriptionService.getAll({
+            pageNumber,
+            pageSize,
+            status: statusFilter,
+            textSearch: debouncedSearch || undefined,
+          }),
+          hospitalPrescriptionService.getEligibleEncounters(),
+          hospitalPrescriptionService.getMedicineCatalog(),
+        ]);
+
+        setPrescriptions(worklist.items);
+        setTotalCount(worklist.totalCount);
+        setEligibleEncounters(encounters);
+        setMedicines(catalog);
+      } catch (error: unknown) {
+        toast.error(getApiErrorMessage(error, "Khong the tai du lieu don thuoc."));
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
+    },
+    [debouncedSearch, pageNumber, pageSize, statusFilter]
+  );
+
+  useEffect(() => {
+    void fetchData();
+  }, [fetchData]);
+
+  const metrics = useMemo(
+    () =>
+      prescriptions.reduce(
+        (acc, item) => {
+          acc[item.status] += 1;
+          return acc;
+        },
+        {
+          Issued: 0,
+          Dispensed: 0,
+          Cancelled: 0,
+        } as Record<HospitalPrescriptionStatus, number>
+      ),
+    [prescriptions]
+  );
+
+  const availableEncounters = eligibleEncounters.filter((item) => !item.existingPrescriptionId);
+  const startItem = totalCount === 0 ? 0 : (pageNumber - 1) * pageSize + 1;
+  const endItem = totalCount === 0 ? 0 : Math.min(pageNumber * pageSize, totalCount);
+
+  const resetCreateForm = () => {
+    setSelectedEncounterId("");
+    setNotes("");
+    setPrescriptionItems([EMPTY_ITEM]);
   };
 
-  const handleAddMedicineRow = () => {
-    setPrescriptionItems([...prescriptionItems, { medicineId: '', dosage: '', duration: '' }]);
+  const handleAddRow = () => {
+    setPrescriptionItems((current) => [...current, { ...EMPTY_ITEM }]);
   };
 
-  const handleRemoveMedicineRow = (index: number) => {
-    const updated = [...prescriptionItems];
-    updated.splice(index, 1);
-    setPrescriptionItems(updated);
+  const handleRemoveRow = (index: number) => {
+    setPrescriptionItems((current) =>
+      current.length === 1 ? current : current.filter((_, itemIndex) => itemIndex !== index)
+    );
   };
 
-  const updateMedicineRow = (index: number, field: keyof PrescriptionFormItem, value: string) => {
-    const updated = [...prescriptionItems];
-    updated[index] = { ...updated[index], [field]: value };
-    setPrescriptionItems(updated);
+  const handleUpdateRow = (
+    index: number,
+    field: keyof PrescriptionItemForm,
+    value: string
+  ) => {
+    setPrescriptionItems((current) =>
+      current.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, [field]: value } : item
+      )
+    );
   };
 
-  const handleCreatePrescription = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedMedicalRecordId) {
-      toast.error('Medical Record is required.');
+  const handleCreatePrescription = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!selectedEncounterId) {
+      toast.error("Can chon encounter de phat hanh don thuoc.");
       return;
     }
 
-    const validItems = prescriptionItems.filter(i => !!i.medicineId && i.dosage && i.duration);
-    if (validItems.length === 0) {
-      toast.error('Please add at least one complete medicine entry.');
+    const items = buildCreateItems(prescriptionItems);
+    if (items.length === 0) {
+      toast.error("Can co it nhat mot thuoc hop le.");
       return;
     }
 
     setIsSubmitting(true);
+
     try {
-      // Create Base Prescription
-      const payload = { medicalRecordId: selectedMedicalRecordId };
-      const createdPrescription = await prescriptionService.create(payload);
-
-      const resolvedPrescriptionId = createdPrescription.id;
-
-      // Add each medicine independently (matching api-spec POST /prescriptions/add-medicine)
-      const requests = validItems.map(item => {
-        return prescriptionService.addMedicine(
-          resolvedPrescriptionId,
-          {
-          medicineId: item.medicineId,
-          dosage: item.dosage,
-          duration: item.duration
-          }
-        );
+      await hospitalPrescriptionService.create({
+        encounterId: selectedEncounterId,
+        status: "Issued",
+        notes: notes.trim() || undefined,
+        items,
       });
-      await Promise.all(requests);
 
-      toast.success('Prescription and medicines successfully created!');
+      toast.success("Da phat hanh don thuoc.");
       setIsCreateModalOpen(false);
-      fetchData();
-      
-      // Reset defaults
-      setSelectedMedicalRecordId('');
-      setPrescriptionItems([{ medicineId: '', dosage: '', duration: '' }]);
+      resetCreateForm();
+      await fetchData(true);
     } catch (error: unknown) {
-      toast.error(getApiErrorMessage(error, 'Failed to save prescription.'));
+      toast.error(getApiErrorMessage(error, "Khong the tao don thuoc."));
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const openDetail = async (prescriptionId: string) => {
+    try {
+      const detail = await hospitalPrescriptionService.getById(prescriptionId);
+      setSelectedPrescription(detail);
+      setIsDetailModalOpen(true);
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, "Khong the tai chi tiet don thuoc."));
+    }
+  };
+
+  const handleDelete = async (prescriptionId: string) => {
     if (role === "Doctor") {
-      toast.error("Doctor khong co quyen xoa don thuoc.");
+      toast.error("Bac si khong co quyen xoa don thuoc.");
       return;
     }
-    if (!confirm('Are you sure you want to delete this prescription history?')) return;
+
+    if (!confirm("Ban co chac muon xoa don thuoc nay?")) {
+      return;
+    }
+
     try {
-      await prescriptionService.delete(id);
-      toast.success('Prescription deleted.');
-      fetchData();
-    } catch {
-      toast.error('Failed to delete prescription.');
+      await hospitalPrescriptionService.delete(prescriptionId);
+      toast.success("Da xoa don thuoc.");
+      await fetchData(true);
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, "Khong the xoa don thuoc."));
     }
   };
 
-  const openDetails = (rx: Prescription) => {
-    setSelectedPrescription(rx);
-    setIsDetailModalOpen(true);
-  };
-
-  const currentRecords = prescriptions.slice((currentPage - 1) * pageSize, Math.min(currentPage * pageSize, prescriptions.length));
-  const selectedRecord = selectedMedicalRecordId ? getRecord(selectedMedicalRecordId) : null;
-  const modalApptInfo = selectedRecord ? getAppt(selectedRecord.appointmentId) : null;
-
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-           <h1 className="text-2xl font-bold text-gray-800">Prescriptions</h1>
-           <p className="text-gray-500 text-sm mt-1">Manage external medical requests and medication dosages.</p>
+    <div className="mx-auto max-w-7xl space-y-6">
+      <div className="rounded-[2rem] border border-cyan-100 bg-gradient-to-br from-cyan-50 via-white to-sky-50 p-6 shadow-sm">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.26em] text-cyan-700">
+              Pharmacy service
+            </p>
+            <h1 className="mt-3 text-3xl font-bold text-slate-950">
+              Don thuoc hospital
+            </h1>
+            <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">
+              Module don thuoc da chuyen sang hospital database moi, bám theo
+              encounter va danh muc thuoc `pharmacy.Medicines`.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3 md:flex-row md:items-center">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Tim theo ma don, encounter, benh nhan..."
+              className="min-w-[260px] rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
+            />
+
+            <select
+              value={statusFilter}
+              onChange={(event) => {
+                setStatusFilter(event.target.value as HospitalPrescriptionStatus | "All");
+                setPageNumber(1);
+              }}
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
+            >
+              {STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+
+            <Button variant="secondary" onClick={() => void fetchData(true)} disabled={isRefreshing}>
+              {isRefreshing ? "Dang lam moi..." : "Lam moi"}
+            </Button>
+            <Button onClick={() => setIsCreateModalOpen(true)}>Phat hanh don thuoc</Button>
+          </div>
         </div>
-        <Button onClick={() => setIsCreateModalOpen(true)}>+ New Prescription</Button>
       </div>
 
-      <Card className="p-0 overflow-hidden border border-gray-100">
+      <div className="grid gap-4 md:grid-cols-4">
+        <MetricCard label="Da phat hanh" value={metrics.Issued} tone="cyan" />
+        <MetricCard label="Da cap thuoc" value={metrics.Dispensed} tone="emerald" />
+        <MetricCard label="Da huy" value={metrics.Cancelled} tone="rose" />
+        <MetricCard label="Encounter cho ke don" value={availableEncounters.length} tone="amber" />
+      </div>
+
+      <Card className="overflow-hidden border border-slate-100 p-0 shadow-sm">
+        <div className="flex flex-col gap-3 border-b border-slate-100 px-6 py-5 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">Danh sach don thuoc</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Hien thi {startItem}-{endItem} / {totalCount} don thuoc.
+            </p>
+          </div>
+
+          <select
+            value={pageSize}
+            onChange={(event) => {
+              setPageSize(Number(event.target.value));
+              setPageNumber(1);
+            }}
+            className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
+          >
+            <option value={10}>10 dong / trang</option>
+            <option value={20}>20 dong / trang</option>
+            <option value={50}>50 dong / trang</option>
+          </select>
+        </div>
+
         {isLoading ? (
-          <div className="p-16 flex flex-col justify-center items-center">
-             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div>
-             <p className="text-gray-500 text-sm font-medium">Loading prescriptions...</p>
+          <div className="flex flex-col items-center justify-center p-16">
+            <div className="mb-4 h-10 w-10 animate-spin rounded-full border-4 border-cyan-100 border-t-cyan-600" />
+            <p className="text-sm font-medium text-slate-500">Dang tai don thuoc...</p>
+          </div>
+        ) : prescriptions.length === 0 ? (
+          <div className="p-16 text-center text-sm text-slate-500">
+            Chua co don thuoc nao khop bo loc hien tai.
           </div>
         ) : (
-          <div className="flex flex-col min-h-[500px]">
-             <div className="overflow-x-auto flex-1">
-              <table className="w-full text-left border-collapse min-w-max">
-                <thead>
-                  <tr className="bg-blue-50 border-b border-gray-200">
-                    <th className="p-4 text-sm font-semibold text-gray-700">Patient Name</th>
-                    <th className="p-4 text-sm font-semibold text-gray-700">Doctor Name</th>
-                    <th className="p-4 text-sm font-semibold text-gray-700">Diagnosis</th>
-                    <th className="p-4 text-sm font-semibold text-gray-700">Created Date</th>
-                    <th className="p-4 text-sm font-semibold text-gray-700">Total Medicines</th>
-                    <th className="p-4 text-sm font-semibold text-gray-700 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {currentRecords.length === 0 ? (
-                    <tr><td colSpan={6} className="p-10 text-center text-gray-500 text-sm">No prescriptions found.</td></tr>
-                  ) : (
-                    currentRecords.map((rx) => {
-                      const rec = getRecord(rx.medicalRecordId);
-                      const appt = rec ? getAppt(rec.appointmentId) : null;
-                      return (
-                      <tr key={rx.id} className="border-b border-gray-100 hover:bg-blue-50/60 transition-colors cursor-pointer" onDoubleClick={() => openDetails(rx)}>
-                        <td className="p-4 text-gray-800 font-medium whitespace-nowrap">
-                          👤 {appt ? getPatientName(appt.patientId) : 'N/A'}
-                        </td>
-                        <td className="p-4 text-gray-600">
-                          🩺 {appt ? getDoctorName(appt.doctorId) : 'N/A'}
-                        </td>
-                        <td className="p-4 text-blue-600 font-medium truncate max-w-[200px]">
-                          {rec?.diagnosis || 'N/A'}
-                        </td>
-                        <td className="p-4 text-gray-500 text-sm font-mono">
-                           {new Date(rx.createdAt).toLocaleDateString()}
-                        </td>
-                        <td className="p-4">
-                           <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-semibold">
-                             {rx.items?.length || 0} Meds
-                           </span>
-                        </td>
-                        <td className="p-4 flex gap-2 justify-end">
-                          <button 
-                            className="text-white hover:bg-blue-600 bg-blue-500 px-3 py-1.5 rounded-lg transition-colors text-xs font-medium shadow-sm"
-                            onClick={(e) => { e.stopPropagation(); openDetails(rx); }}
+          <div className="overflow-x-auto">
+            <table className="min-w-[1260px] w-full border-collapse text-left">
+              <thead>
+                <tr className="bg-slate-50">
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Don thuoc</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Benh nhan</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Bac si</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Chan doan</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Trang thai</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Ngay tao</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Tac vu</th>
+                </tr>
+              </thead>
+              <tbody>
+                {prescriptions.map((prescription) => (
+                  <tr
+                    key={prescription.prescriptionId}
+                    className="border-t border-slate-100 align-top transition-colors hover:bg-cyan-50/30"
+                  >
+                    <td className="px-6 py-4">
+                      <div className="font-semibold text-slate-900">{prescription.prescriptionNumber}</div>
+                      <div className="mt-1 text-sm text-slate-500">{prescription.encounterNumber}</div>
+                      <div className="mt-1 text-xs text-slate-400">{prescription.totalItems} thuoc</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="font-semibold text-slate-900">{prescription.patientName}</div>
+                      <div className="mt-1 text-sm text-slate-500">{prescription.medicalRecordNumber}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="font-semibold text-slate-900">{prescription.doctorName}</div>
+                      <div className="mt-1 text-sm text-slate-500">{prescription.specialtyName}</div>
+                      <div className="mt-1 text-sm text-slate-500">{prescription.clinicName}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="font-semibold text-cyan-700">
+                        {prescription.primaryDiagnosisName || "--"}
+                      </div>
+                      <div className="mt-1 text-sm text-slate-500">
+                        {prescription.notes || "Khong co ghi chu them."}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${getStatusClass(
+                          prescription.status
+                        )}`}
+                      >
+                        {getStatusLabel(prescription.status)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-slate-600">
+                      {formatDateTime(prescription.createdAtLocal)}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant="secondary"
+                          className="border-cyan-200 text-cyan-700 hover:bg-cyan-50"
+                          onClick={() => void openDetail(prescription.prescriptionId)}
+                        >
+                          Xem
+                        </Button>
+                        {role !== "Doctor" && (
+                          <Button
+                            variant="secondary"
+                            className="border-rose-200 text-rose-700 hover:bg-rose-50"
+                            onClick={() => void handleDelete(prescription.prescriptionId)}
                           >
-                            View
-                          </button>
-                          {role !== "Doctor" && (
-                            <button 
-                              onClick={(e) => { e.stopPropagation(); handleDelete(rx.id); }}
-                              className="text-red-500 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded-lg transition-colors text-xs font-medium border border-red-200"
-                            >
-                              Delete
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    )})
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {totalPages > 0 && (
-              <div className="p-4 border-t border-gray-100 flex items-center justify-between bg-white">
-                <span className="text-sm text-gray-600">
-                  Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, prescriptions.length)} of {prescriptions.length} entries
-                </span>
-                <div className="flex gap-1">
-                  <button disabled={currentPage === 1} onClick={() => setCurrentPage(1)} className="px-3 py-1 border border-gray-200 rounded-lg text-sm disabled:opacity-50 hover:bg-gray-50 text-gray-600">«</button>
-                  <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="px-3 py-1 border border-gray-200 rounded-lg text-sm disabled:opacity-50 hover:bg-gray-50 text-gray-600">‹ Prev</button>
-                  <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="px-3 py-1 border border-gray-200 rounded-lg text-sm disabled:opacity-50 hover:bg-blue-50 text-blue-600 font-medium">Next ›</button>
-                </div>
-              </div>
-            )}
+                            Xoa
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
+
+        <div className="flex flex-col gap-3 border-t border-slate-100 px-6 py-4 md:flex-row md:items-center md:justify-between">
+          <p className="text-sm text-slate-500">
+            Trang {pageNumber}/{totalPages}
+          </p>
+
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" onClick={() => setPageNumber(1)} disabled={pageNumber === 1}>
+              Dau
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => setPageNumber((current) => current - 1)}
+              disabled={pageNumber === 1}
+            >
+              Truoc
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => setPageNumber((current) => current + 1)}
+              disabled={pageNumber >= totalPages}
+            >
+              Sau
+            </Button>
+          </div>
+        </div>
       </Card>
 
-      {/* CREATE PRESCRIPTION MODAL */}
-      <Modal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} title="Create Prescription">
-        <form onSubmit={handleCreatePrescription} className="space-y-6 mt-2 pb-2">
-          
+      <Modal
+        isOpen={isCreateModalOpen}
+        onClose={() => {
+          setIsCreateModalOpen(false);
+          resetCreateForm();
+        }}
+        title="Phat hanh don thuoc"
+      >
+        <form onSubmit={handleCreatePrescription} className="space-y-5">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Select Medical Record</label>
-            <select 
-              className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition-all cursor-pointer"
-              value={selectedMedicalRecordId}
-              onChange={(e) => setSelectedMedicalRecordId(e.target.value)}
+            <label className="mb-2 block text-sm font-medium text-slate-700">
+              Chon encounter
+            </label>
+            <select
+              value={selectedEncounterId}
+              onChange={(event) => setSelectedEncounterId(event.target.value)}
+              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
               required
             >
-              <option value="">-- Choose Diagnosis Basis --</option>
-              {medicalRecords.filter(r => !prescriptions.some(p => p.medicalRecordId === r.id)).map(r => {
-                const associatedAppt = getAppt(r.appointmentId);
-                return (
-                 <option key={r.id} value={r.id}>
-                  {r.diagnosis} - {associatedAppt ? getPatientName(associatedAppt.patientId) : 'Unknown'}
-                 </option>
-                );
-              })}
+              <option value="">-- Chon encounter --</option>
+              {availableEncounters.map((encounter) => (
+                <option key={encounter.encounterId} value={encounter.encounterId}>
+                  {encounter.encounterNumber} - {encounter.patientName} - {encounter.primaryDiagnosisName || "Chua co chan doan"}
+                </option>
+              ))}
             </select>
           </div>
 
-          {selectedRecord && modalApptInfo && (
-             <div className="bg-blue-50/70 border border-blue-100 p-4 rounded-xl flex flex-col gap-1.5 text-sm shadow-sm">
-                <p><span className="font-semibold text-gray-700">Patient Name:</span> {getPatientName(modalApptInfo.patientId)}</p>
-                <p><span className="font-semibold text-gray-700">Diagnosis Record:</span> <span className="text-blue-700 font-medium py-0.5 px-2 bg-blue-100 rounded-md">{selectedRecord.diagnosis}</span></p>
-                <p><span className="font-semibold text-gray-700">Consult Date:</span> {new Date(modalApptInfo.appointmentDate).toLocaleString()}</p>
-             </div>
-          )}
+          <div>
+            <label className="mb-2 block text-sm font-medium text-slate-700">Ghi chu</label>
+            <textarea
+              rows={3}
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+              className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
+              placeholder="Luu y su dung thuoc, huong dan bo sung..."
+            />
+          </div>
 
-          {/* DYNAMIC MEDICINE ARRAY */}
-          <div className="border-t border-gray-100 pt-5 space-y-4">
-            <div className="flex justify-between items-center bg-gray-50 p-3 rounded-lg border border-gray-200">
-               <h3 className="text-sm font-bold text-gray-800">Medicines Required</h3>
-               <button 
-                 type="button" 
-                 onClick={handleAddMedicineRow}
-                 className="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 px-3 py-1.5 rounded-lg font-semibold transition"
-               >
-                 + Add Row
-               </button>
+          <div className="space-y-4 border-t border-slate-100 pt-5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-800">Danh sach thuoc</h3>
+              <Button type="button" variant="secondary" onClick={handleAddRow}>
+                Them dong
+              </Button>
             </div>
 
             {prescriptionItems.map((item, index) => (
-              <div key={index} className="flex flex-col md:flex-row items-end gap-3 p-3 border border-dashed border-gray-300 rounded-xl bg-gray-50/50">
-                <div className="flex-1 w-full">
-                  <label className="block text-xs font-semibold text-gray-500 mb-1">Medicine (from Catalog)</label>
-                  <select 
-                    className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 outline-none cursor-pointer"
-                    value={item.medicineId}
-                    onChange={(e) => updateMedicineRow(index, 'medicineId', e.target.value)}
-                    required
+              <div
+                key={index}
+                className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-4"
+              >
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="md:col-span-2">
+                    <label className="mb-2 block text-sm font-medium text-slate-700">Thuoc</label>
+                    <select
+                      value={item.medicineId}
+                      onChange={(event) => handleUpdateRow(index, "medicineId", event.target.value)}
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
+                      required
+                    >
+                      <option value="">-- Chon thuoc --</option>
+                      {medicines.map((medicine) => (
+                        <option key={medicine.medicineId} value={medicine.medicineId}>
+                          {medicine.name} ({medicine.drugCode}) {medicine.strength ? `- ${medicine.strength}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <InputField
+                    label="Lieu dung"
+                    value={item.doseInstruction}
+                    onChange={(value) => handleUpdateRow(index, "doseInstruction", value)}
+                    placeholder="1 vien/lần"
+                  />
+                  <InputField
+                    label="Duong dung"
+                    value={item.route}
+                    onChange={(value) => handleUpdateRow(index, "route", value)}
+                    placeholder="Uong"
+                  />
+                  <InputField
+                    label="Tan suat"
+                    value={item.frequency}
+                    onChange={(value) => handleUpdateRow(index, "frequency", value)}
+                    placeholder="Ngay 2 lan"
+                  />
+                  <InputField
+                    label="So ngay"
+                    value={item.durationDays}
+                    onChange={(value) => handleUpdateRow(index, "durationDays", value)}
+                    placeholder="5"
+                    type="number"
+                  />
+                  <InputField
+                    label="So luong"
+                    value={item.quantity}
+                    onChange={(value) => handleUpdateRow(index, "quantity", value)}
+                    placeholder="10"
+                    type="number"
+                  />
+                </div>
+
+                <div className="mt-4 flex justify-end">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="border-rose-200 text-rose-700 hover:bg-rose-50"
+                    onClick={() => handleRemoveRow(index)}
+                    disabled={prescriptionItems.length === 1}
                   >
-                    <option value="">- Select -</option>
-                    {medicines.map(m => (
-                      <option key={m.id} value={m.id}>{m.name}</option>
-                    ))}
-                  </select>
+                    Xoa dong
+                  </Button>
                 </div>
-
-                <div className="w-full md:w-32 flex-shrink-0">
-                  <label className="block text-xs font-semibold text-gray-500 mb-1">Dosage</label>
-                  <input 
-                    type="text" placeholder="e.g 2 pills..."
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 outline-none"
-                    value={item.dosage}
-                    onChange={(e) => updateMedicineRow(index, 'dosage', e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="w-full md:w-32 flex-shrink-0">
-                  <label className="block text-xs font-semibold text-gray-500 mb-1">Duration</label>
-                  <input 
-                    type="text" placeholder="e.g 5 days..."
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 outline-none"
-                    value={item.duration}
-                    onChange={(e) => updateMedicineRow(index, 'duration', e.target.value)}
-                    required
-                  />
-                </div>
-
-                <button 
-                  type="button" 
-                  onClick={() => handleRemoveMedicineRow(index)}
-                  disabled={prescriptionItems.length === 1}
-                  className="w-full md:w-auto mt-2 md:mt-0 px-3 py-2 border border-red-200 text-red-500 hover:bg-red-50 disabled:opacity-30 rounded-lg text-sm font-medium transition"
-                  title="Remove Medicine"
-                >
-                  ✕
-                </button>
               </div>
             ))}
           </div>
 
-          <div className="pt-5 border-t border-gray-100 flex justify-end gap-3">
-            <Button type="button" variant="secondary" onClick={() => setIsCreateModalOpen(false)}>Cancel</Button>
+          <div className="flex justify-end gap-3 border-t border-slate-100 pt-5">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setIsCreateModalOpen(false);
+                resetCreateForm();
+              }}
+            >
+              Dong
+            </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Finalizing...' : 'Save Prescription & Medicines'}
+              {isSubmitting ? "Dang phat hanh..." : "Xac nhan don thuoc"}
             </Button>
           </div>
         </form>
       </Modal>
 
-      {/* DETAIL DRAWER / MODAL */}
-      <Modal isOpen={isDetailModalOpen} onClose={() => setIsDetailModalOpen(false)} title="Prescription Details">
-         {selectedPrescription && (() => {
-           const rec = getRecord(selectedPrescription.medicalRecordId);
-           const appt = rec ? getAppt(rec.appointmentId) : null;
-           
-           return (
-             <div className="space-y-4 pt-2">
-                 <div className="bg-blue-50/70 border border-blue-100 p-4 rounded-xl flex flex-col gap-2 text-sm shadow-sm md:flex-row md:justify-between">
-                    <div>
-                      <p><span className="font-semibold text-gray-700">Patient:</span> {appt ? getPatientName(appt.patientId) : 'N/A'}</p>
-                      <p><span className="font-semibold text-gray-700">Physician:</span> {appt ? getDoctorName(appt.doctorId) : 'N/A'}</p>
-                    </div>
-                    <div className="md:text-right">
-                      <p><span className="font-semibold text-gray-700">Issued Date:</span> {new Date(selectedPrescription.createdAt).toLocaleDateString()}</p>
-                      <p><span className="font-semibold text-gray-700">Diagnosis:</span> <span className="text-blue-600">{rec?.diagnosis || 'N/A'}</span></p>
-                    </div>
-                 </div>
+      <Modal
+        isOpen={isDetailModalOpen}
+        onClose={() => {
+          setIsDetailModalOpen(false);
+          setSelectedPrescription(null);
+        }}
+        title="Chi tiet don thuoc"
+      >
+        {selectedPrescription ? (
+          <div className="space-y-5">
+            <div className="grid gap-3 rounded-2xl border border-cyan-100 bg-cyan-50/70 p-4 text-sm md:grid-cols-2">
+              <InfoLine label="Don thuoc" value={selectedPrescription.prescriptionNumber} />
+              <InfoLine label="Encounter" value={selectedPrescription.encounterNumber} />
+              <InfoLine label="Benh nhan" value={selectedPrescription.patientName} />
+              <InfoLine label="Bac si" value={selectedPrescription.doctorName} />
+              <InfoLine label="Chan doan" value={selectedPrescription.primaryDiagnosisName || "--"} />
+              <InfoLine label="Ngay tao" value={formatDateTime(selectedPrescription.createdAtLocal)} />
+            </div>
 
-                 <div className="border rounded-2xl overflow-hidden shadow-sm mt-4">
-                   <table className="w-full text-left text-sm">
-                     <thead className="bg-gray-50 border-b">
-                       <tr>
-                         <th className="p-3 text-gray-700">Medicine Name</th>
-                         <th className="p-3 text-gray-700">Dosage</th>
-                         <th className="p-3 text-gray-700">Duration</th>
-                       </tr>
-                     </thead>
-                     <tbody className="divide-y divide-gray-100">
-                       {(!selectedPrescription.items || selectedPrescription.items.length === 0) ? (
-                         <tr><td colSpan={3} className="p-4 text-center text-gray-500">No medicines attached.</td></tr>
-                       ) : (
-                          selectedPrescription.items.map((m) => (
-                            <tr key={m.id} className="hover:bg-blue-50/50">
-                             <td className="p-3 font-medium text-gray-800">💊 {getMedicineName(m.medicineId)}</td>
-                             <td className="p-3 text-gray-600">{m.dosage}</td>
-                             <td className="p-3 text-blue-600 bg-blue-50/40">{m.duration}</td>
-                           </tr>
-                         ))
-                       )}
-                     </tbody>
-                   </table>
-                 </div>
+            <div className="overflow-hidden rounded-2xl border border-slate-100">
+              <table className="w-full border-collapse text-left text-sm">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold text-slate-700">Thuoc</th>
+                    <th className="px-4 py-3 font-semibold text-slate-700">Lieu dung</th>
+                    <th className="px-4 py-3 font-semibold text-slate-700">Tan suat</th>
+                    <th className="px-4 py-3 font-semibold text-slate-700">So luong</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedPrescription.items.map((item) => (
+                    <tr key={item.prescriptionItemId} className="border-t border-slate-100">
+                      <td className="px-4 py-3">
+                        <div className="font-semibold text-slate-900">{item.medicineName}</div>
+                        <div className="mt-1 text-xs text-slate-500">
+                          {item.drugCode}
+                          {item.strength ? ` / ${item.strength}` : ""}
+                          {item.dosageForm ? ` / ${item.dosageForm}` : ""}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">{item.doseInstruction}</td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {[item.route, item.frequency, item.durationDays ? `${item.durationDays} ngay` : null]
+                          .filter(Boolean)
+                          .join(" / ") || "--"}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {item.quantity} {item.unit || ""}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-                 <div className="pt-4 flex justify-end">
-                    <Button variant="secondary" onClick={() => setIsDetailModalOpen(false)}>Close View</Button>
-                 </div>
-             </div>
-           );
-         })()}
+            <div className="flex justify-end">
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setIsDetailModalOpen(false);
+                  setSelectedPrescription(null);
+                }}
+              >
+                Dong
+              </Button>
+            </div>
+          </div>
+        ) : null}
       </Modal>
+    </div>
+  );
+}
 
+function MetricCard({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone: "cyan" | "emerald" | "rose" | "amber";
+}) {
+  const toneClasses = {
+    cyan: "border-cyan-100 bg-cyan-50/70 text-cyan-700",
+    emerald: "border-emerald-100 bg-emerald-50/70 text-emerald-700",
+    rose: "border-rose-100 bg-rose-50/70 text-rose-700",
+    amber: "border-amber-100 bg-amber-50/70 text-amber-700",
+  };
+
+  return (
+    <Card className={`border p-5 shadow-sm hover:shadow-sm ${toneClasses[tone]}`}>
+      <p className="text-xs font-bold uppercase tracking-[0.2em]">{label}</p>
+      <p className="mt-3 text-3xl font-bold text-slate-950">{value}</p>
+    </Card>
+  );
+}
+
+function InputField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  type?: "text" | "number";
+}) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-medium text-slate-700">{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
+      />
+    </div>
+  );
+}
+
+function InfoLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-slate-500">{label}</p>
+      <p className="mt-1 font-semibold text-slate-900">{value}</p>
     </div>
   );
 }

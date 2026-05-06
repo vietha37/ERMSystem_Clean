@@ -1,396 +1,752 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { Card } from "@/components/ui/Card";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
-import { medicalRecordService } from "@/services/medicalRecordService";
-import { appointmentService } from "@/services/appointmentService";
-import { patientService } from "@/services/patientService";
-import { doctorService } from "@/services/doctorService";
 import { getApiErrorMessage } from "@/services/error";
-import { Appointment, Doctor, MedicalRecord, Patient } from "@/services/types";
+import { hospitalEncounterService } from "@/services/hospitalEncounterService";
+import {
+  CreateHospitalEncounterPayload,
+  HospitalEncounterDetail,
+  HospitalEncounterEligibleAppointment,
+  HospitalEncounterStatus,
+  HospitalEncounterSummary,
+  UpdateHospitalEncounterPayload,
+} from "@/services/types";
 import toast from "react-hot-toast";
 
-function formatDateTime(value?: string): string {
-  if (!value) return "-";
+const ENCOUNTER_STATUS_OPTIONS: Array<{
+  value: HospitalEncounterStatus | "All";
+  label: string;
+}> = [
+  { value: "All", label: "Tat ca" },
+  { value: "InProgress", label: "Dang kham" },
+  { value: "Finalized", label: "Da chot ho so" },
+];
+
+type EncounterFormState = {
+  appointmentId: string;
+  diagnosisName: string;
+  diagnosisCode: string;
+  diagnosisType: string;
+  encounterStatus: HospitalEncounterStatus;
+  summary: string;
+  subjective: string;
+  objective: string;
+  assessment: string;
+  carePlan: string;
+  heightCm: string;
+  weightKg: string;
+  temperatureC: string;
+  pulseRate: string;
+  respiratoryRate: string;
+  systolicBp: string;
+  diastolicBp: string;
+  oxygenSaturation: string;
+};
+
+const EMPTY_FORM: EncounterFormState = {
+  appointmentId: "",
+  diagnosisName: "",
+  diagnosisCode: "",
+  diagnosisType: "Working",
+  encounterStatus: "InProgress",
+  summary: "",
+  subjective: "",
+  objective: "",
+  assessment: "",
+  carePlan: "",
+  heightCm: "",
+  weightKg: "",
+  temperatureC: "",
+  pulseRate: "",
+  respiratoryRate: "",
+  systolicBp: "",
+  diastolicBp: "",
+  oxygenSaturation: "",
+};
+
+function formatDateTime(value?: string | null): string {
+  if (!value) {
+    return "--";
+  }
+
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleString("vi-VN", {
-    hour12: false,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  if (Number.isNaN(date.getTime())) {
+    return "--";
+  }
+
+  return date.toLocaleString("vi-VN");
+}
+
+function getEncounterStatusLabel(status: HospitalEncounterStatus): string {
+  switch (status) {
+    case "InProgress":
+      return "Dang kham";
+    case "Finalized":
+      return "Da chot ho so";
+    default:
+      return status;
+  }
+}
+
+function getEncounterStatusClass(status: HospitalEncounterStatus): string {
+  switch (status) {
+    case "InProgress":
+      return "border border-amber-200 bg-amber-50 text-amber-700";
+    case "Finalized":
+      return "border border-emerald-200 bg-emerald-50 text-emerald-700";
+    default:
+      return "border border-slate-200 bg-slate-100 text-slate-700";
+  }
+}
+
+function parseOptionalNumber(value: string): number | null {
+  if (!value.trim()) {
+    return null;
+  }
+
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function buildPayload(form: EncounterFormState): CreateHospitalEncounterPayload {
+  return {
+    appointmentId: form.appointmentId,
+    diagnosisName: form.diagnosisName.trim(),
+    diagnosisCode: form.diagnosisCode.trim() || undefined,
+    diagnosisType: form.diagnosisType.trim() || "Working",
+    encounterStatus: form.encounterStatus,
+    summary: form.summary.trim() || undefined,
+    subjective: form.subjective.trim() || undefined,
+    objective: form.objective.trim() || undefined,
+    assessment: form.assessment.trim() || undefined,
+    carePlan: form.carePlan.trim() || undefined,
+    heightCm: parseOptionalNumber(form.heightCm),
+    weightKg: parseOptionalNumber(form.weightKg),
+    temperatureC: parseOptionalNumber(form.temperatureC),
+    pulseRate: parseOptionalNumber(form.pulseRate),
+    respiratoryRate: parseOptionalNumber(form.respiratoryRate),
+    systolicBp: parseOptionalNumber(form.systolicBp),
+    diastolicBp: parseOptionalNumber(form.diastolicBp),
+    oxygenSaturation: parseOptionalNumber(form.oxygenSaturation),
+  };
+}
+
+function buildUpdatePayload(form: EncounterFormState): UpdateHospitalEncounterPayload {
+  const payload = buildPayload(form);
+
+  return {
+    diagnosisName: payload.diagnosisName,
+    diagnosisCode: payload.diagnosisCode,
+    diagnosisType: payload.diagnosisType,
+    encounterStatus: payload.encounterStatus,
+    summary: payload.summary,
+    subjective: payload.subjective,
+    objective: payload.objective,
+    assessment: payload.assessment,
+    carePlan: payload.carePlan,
+    heightCm: payload.heightCm,
+    weightKg: payload.weightKg,
+    temperatureC: payload.temperatureC,
+    pulseRate: payload.pulseRate,
+    respiratoryRate: payload.respiratoryRate,
+    systolicBp: payload.systolicBp,
+    diastolicBp: payload.diastolicBp,
+    oxygenSaturation: payload.oxygenSaturation,
+  };
+}
+
+function mapDetailToForm(detail: HospitalEncounterDetail): EncounterFormState {
+  return {
+    appointmentId: detail.appointmentId ?? "",
+    diagnosisName: detail.primaryDiagnosisName ?? "",
+    diagnosisCode: detail.diagnosisCode ?? "",
+    diagnosisType: detail.diagnosisType ?? "Working",
+    encounterStatus: detail.encounterStatus,
+    summary: detail.summary ?? "",
+    subjective: detail.subjective ?? "",
+    objective: detail.objective ?? "",
+    assessment: detail.assessment ?? "",
+    carePlan: detail.carePlan ?? "",
+    heightCm: detail.heightCm?.toString() ?? "",
+    weightKg: detail.weightKg?.toString() ?? "",
+    temperatureC: detail.temperatureC?.toString() ?? "",
+    pulseRate: detail.pulseRate?.toString() ?? "",
+    respiratoryRate: detail.respiratoryRate?.toString() ?? "",
+    systolicBp: detail.systolicBp?.toString() ?? "",
+    diastolicBp: detail.diastolicBp?.toString() ?? "",
+    oxygenSaturation: detail.oxygenSaturation?.toString() ?? "",
+  };
 }
 
 export default function MedicalRecordsPage() {
-  const [records, setRecords] = useState<MedicalRecord[]>([]);
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [doctors, setDoctors] = useState<Doctor[]>([]);
-
+  const [encounters, setEncounters] = useState<HospitalEncounterSummary[]>([]);
+  const [eligibleAppointments, setEligibleAppointments] = useState<
+    HospitalEncounterEligibleAppointment[]
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<HospitalEncounterStatus | "All">(
+    "All"
+  );
+  const [appointmentDate, setAppointmentDate] = useState("");
+  const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [selectedRecord, setSelectedRecord] = useState<MedicalRecord | null>(null);
+  const [editingEncounterId, setEditingEncounterId] = useState<string | null>(null);
+  const [form, setForm] = useState<EncounterFormState>(EMPTY_FORM);
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10;
-  const totalPages = Math.ceil((records?.length || 0) / pageSize);
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
-  const [formData, setFormData] = useState({
-    appointmentId: "",
-    symptoms: "",
-    diagnosis: "",
-    notes: "",
-  });
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+      setPageNumber(1);
+    }, 400);
 
-  const fetchData = async () => {
-    setIsLoading(true);
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
+
+  const fetchData = useCallback(
+    async (showRefreshState = false) => {
+      if (showRefreshState) {
+        setIsRefreshing(true);
+      } else {
+        setIsLoading(true);
+      }
+
+      try {
+        const [worklist, appointments] = await Promise.all([
+          hospitalEncounterService.getAll({
+            pageNumber,
+            pageSize,
+            encounterStatus: statusFilter,
+            appointmentDate: appointmentDate || undefined,
+            textSearch: debouncedSearch || undefined,
+          }),
+          hospitalEncounterService.getEligibleAppointments(),
+        ]);
+
+        setEncounters(worklist.items);
+        setTotalCount(worklist.totalCount);
+        setEligibleAppointments(appointments);
+      } catch (error: unknown) {
+        toast.error(getApiErrorMessage(error, "Khong the tai du lieu EMR."));
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
+    },
+    [appointmentDate, debouncedSearch, pageNumber, pageSize, statusFilter]
+  );
+
+  useEffect(() => {
+    void fetchData();
+  }, [fetchData]);
+
+  const metrics = useMemo(
+    () =>
+      encounters.reduce(
+        (acc, item) => {
+          acc[item.encounterStatus] += 1;
+          return acc;
+        },
+        {
+          InProgress: 0,
+          Finalized: 0,
+        } as Record<HospitalEncounterStatus, number>
+      ),
+    [encounters]
+  );
+
+  const startItem = totalCount === 0 ? 0 : (pageNumber - 1) * pageSize + 1;
+  const endItem = totalCount === 0 ? 0 : Math.min(pageNumber * pageSize, totalCount);
+
+  const availableAppointments = eligibleAppointments.filter(
+    (item) => !item.existingEncounterId || item.existingEncounterId === editingEncounterId
+  );
+
+  const openCreateModal = () => {
+    setEditingEncounterId(null);
+    setForm(EMPTY_FORM);
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = async (encounterId: string) => {
     try {
-      const [recsDb, apptsDb, ptsDb, docsDb] = await Promise.all([
-        medicalRecordService.getAll(1, 100),
-        appointmentService.getAll(1, 100),
-        patientService.getAll(1, 100),
-        doctorService.getAll(1, 100),
-      ]);
-
-      setRecords(recsDb?.items || recsDb || []);
-      setAppointments(apptsDb?.items || apptsDb || []);
-      setPatients(ptsDb?.items || ptsDb || []);
-      setDoctors(docsDb?.items || docsDb || []);
+      const detail = await hospitalEncounterService.getById(encounterId);
+      setEditingEncounterId(encounterId);
+      setForm(mapDetailToForm(detail));
+      setIsModalOpen(true);
     } catch (error: unknown) {
-      toast.error(getApiErrorMessage(error, "Failed to load medical records data."));
-    } finally {
-      setIsLoading(false);
+      toast.error(getApiErrorMessage(error, "Khong the tai chi tiet encounter."));
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.appointmentId || !formData.diagnosis) {
-      toast.error("Appointment and Diagnosis are required.");
+    if (!editingEncounterId && !form.appointmentId) {
+      toast.error("Can chon lich hen de mo encounter.");
+      return;
+    }
+
+    if (!form.diagnosisName.trim()) {
+      toast.error("Chan doan la truong bat buoc.");
       return;
     }
 
     setIsSubmitting(true);
+
     try {
-      await medicalRecordService.create({ ...formData });
-      toast.success("Medical record created successfully!");
+      if (editingEncounterId) {
+        await hospitalEncounterService.update(editingEncounterId, buildUpdatePayload(form));
+        toast.success("Da cap nhat encounter.");
+      } else {
+        await hospitalEncounterService.create(buildPayload(form));
+        toast.success("Da tao encounter moi.");
+      }
+
       setIsModalOpen(false);
-      setFormData({ appointmentId: "", symptoms: "", diagnosis: "", notes: "" });
-      fetchData();
+      setEditingEncounterId(null);
+      setForm(EMPTY_FORM);
+      await fetchData(true);
     } catch (error: unknown) {
-      toast.error(getApiErrorMessage(error, "Failed to create medical record."));
+      toast.error(getApiErrorMessage(error, "Khong the luu ho so EMR."));
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this medical record? This cannot be undone.")) return;
-    try {
-      await medicalRecordService.delete(id);
-      toast.success("Medical record deleted.");
-      fetchData();
-    } catch {
-      toast.error("Failed to delete history.");
-    }
-  };
-
-  const getPatientName = (id: string) => {
-    const p = patients.find((item) => item.id === id);
-    return p ? p.fullName : `Patient ${id}`;
-  };
-
-  const getDoctorName = (id: string) => {
-    const d = doctors.find((item) => item.id === id);
-    return d ? `Dr. ${d.fullName}` : `Doctor ${id}`;
-  };
-
-  const getAppointmentDetails = (appointmentId: string) =>
-    appointments.find((a) => a.id === appointmentId);
-
-  const selectedAppointmentData = formData.appointmentId
-    ? getAppointmentDetails(formData.appointmentId)
-    : null;
-
-  const selectedRecordAppointment = selectedRecord
-    ? getAppointmentDetails(selectedRecord.appointmentId)
-    : null;
-
-  const currentRecords = records.slice(
-    (currentPage - 1) * pageSize,
-    Math.min(currentPage * pageSize, records.length)
-  );
-
-  const openDetails = (record: MedicalRecord) => {
-    setSelectedRecord(record);
-    setIsDetailModalOpen(true);
-  };
-
-  const closeDetails = () => {
-    setIsDetailModalOpen(false);
-    setSelectedRecord(null);
-  };
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Medical Records</h1>
-          <p className="mt-1 text-sm text-gray-500">Manage patient diagnosis and consultation notes.</p>
+    <div className="mx-auto max-w-7xl space-y-6">
+      <div className="rounded-[2rem] border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-cyan-50 p-6 shadow-sm">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.26em] text-emerald-700">
+              EMR service
+            </p>
+            <h1 className="mt-3 text-3xl font-bold text-slate-950">
+              Ho so kham benh hospital
+            </h1>
+            <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">
+              Module nay da chuyen sang hospital database moi. Moi ho so duoc luu
+              theo mo hinh encounter, gom chan doan, ghi chu lam sang va dau hieu sinh ton.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3 md:flex-row md:items-center">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Tim theo ma encounter, ma lich, benh nhan..."
+              className="min-w-[260px] rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+            />
+
+            <input
+              type="date"
+              value={appointmentDate}
+              onChange={(event) => {
+                setAppointmentDate(event.target.value);
+                setPageNumber(1);
+              }}
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+            />
+
+            <select
+              value={statusFilter}
+              onChange={(event) => {
+                setStatusFilter(event.target.value as HospitalEncounterStatus | "All");
+                setPageNumber(1);
+              }}
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+            >
+              {ENCOUNTER_STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+
+            <Button variant="secondary" onClick={() => void fetchData(true)} disabled={isRefreshing}>
+              {isRefreshing ? "Dang lam moi..." : "Lam moi"}
+            </Button>
+            <Button onClick={openCreateModal}>Mo encounter</Button>
+          </div>
         </div>
-        <Button onClick={() => setIsModalOpen(true)}>+ Add Medical Record</Button>
       </div>
 
-      <Card className="overflow-hidden border border-gray-100 p-0">
+      <div className="grid gap-4 md:grid-cols-3">
+        <MetricCard label="Dang kham" value={metrics.InProgress} tone="amber" />
+        <MetricCard label="Da chot ho so" value={metrics.Finalized} tone="emerald" />
+        <MetricCard label="Lich cho mo encounter" value={availableAppointments.length} tone="cyan" />
+      </div>
+
+      <Card className="overflow-hidden border border-slate-100 p-0 shadow-sm">
+        <div className="flex flex-col gap-3 border-b border-slate-100 px-6 py-5 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">Danh sach encounter</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Hien thi {startItem}-{endItem} / {totalCount} ho so.
+            </p>
+          </div>
+
+          <select
+            value={pageSize}
+            onChange={(event) => {
+              setPageSize(Number(event.target.value));
+              setPageNumber(1);
+            }}
+            className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+          >
+            <option value={10}>10 dong / trang</option>
+            <option value={20}>20 dong / trang</option>
+            <option value={50}>50 dong / trang</option>
+          </select>
+        </div>
+
         {isLoading ? (
           <div className="flex flex-col items-center justify-center p-16">
-            <div className="mb-4 h-10 w-10 animate-spin rounded-full border-b-2 border-blue-600" />
-            <p className="text-sm font-medium text-gray-500">Loading medical records...</p>
+            <div className="mb-4 h-10 w-10 animate-spin rounded-full border-4 border-emerald-100 border-t-emerald-600" />
+            <p className="text-sm font-medium text-slate-500">Dang tai ho so EMR...</p>
+          </div>
+        ) : encounters.length === 0 ? (
+          <div className="p-16 text-center text-sm text-slate-500">
+            Chua co encounter nao khop bo loc hien tai.
           </div>
         ) : (
-          <div className="flex min-h-[500px] flex-col">
-            <div className="flex-1 overflow-x-auto">
-              <table className="min-w-max w-full border-collapse text-left">
-                <thead>
-                  <tr className="border-b border-gray-200 bg-blue-50">
-                    <th className="p-4 text-sm font-semibold text-gray-700">Patient Name</th>
-                    <th className="p-4 text-sm font-semibold text-gray-700">Doctor Name</th>
-                    <th className="p-4 text-sm font-semibold text-gray-700">Appointment Date</th>
-                    <th className="p-4 text-sm font-semibold text-gray-700">Diagnosis</th>
-                    <th className="p-4 text-sm font-semibold text-gray-700">Created At</th>
-                    <th className="p-4 text-right text-sm font-semibold text-gray-700">Actions</th>
+          <div className="overflow-x-auto">
+            <table className="min-w-[1260px] w-full border-collapse text-left">
+              <thead>
+                <tr className="bg-slate-50">
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Encounter</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Benh nhan</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Bac si</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Chan doan</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Trang thai</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Cap nhat</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Tac vu</th>
+                </tr>
+              </thead>
+              <tbody>
+                {encounters.map((encounter) => (
+                  <tr
+                    key={encounter.encounterId}
+                    className="border-t border-slate-100 align-top transition-colors hover:bg-emerald-50/30"
+                  >
+                    <td className="px-6 py-4">
+                      <div className="font-semibold text-slate-900">{encounter.encounterNumber}</div>
+                      <div className="mt-1 text-sm text-slate-500">
+                        {encounter.appointmentNumber || "--"}
+                      </div>
+                      <div className="mt-1 text-xs text-slate-400">
+                        Bat dau: {formatDateTime(encounter.startedAtLocal)}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="font-semibold text-slate-900">{encounter.patientName}</div>
+                      <div className="mt-1 text-sm text-slate-500">
+                        {encounter.medicalRecordNumber}
+                      </div>
+                      <div className="mt-1 text-xs text-slate-400">
+                        Lich kham: {formatDateTime(encounter.appointmentStartLocal)}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="font-semibold text-slate-900">{encounter.doctorName}</div>
+                      <div className="mt-1 text-sm text-slate-500">{encounter.specialtyName}</div>
+                      <div className="mt-1 text-sm text-slate-500">{encounter.clinicName}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="font-semibold text-emerald-700">
+                        {encounter.primaryDiagnosisName || "--"}
+                      </div>
+                      <div className="mt-1 max-w-[280px] text-sm text-slate-500">
+                        {encounter.summary || "Chua co tom tat benh an."}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${getEncounterStatusClass(
+                          encounter.encounterStatus
+                        )}`}
+                      >
+                        {getEncounterStatusLabel(encounter.encounterStatus)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-slate-600">
+                      <div>{formatDateTime(encounter.updatedAtLocal)}</div>
+                      <div className="mt-1 text-xs text-slate-400">
+                        Ket thuc: {formatDateTime(encounter.endedAtLocal)}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <Button
+                        variant="secondary"
+                        className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                        onClick={() => void openEditModal(encounter.encounterId)}
+                      >
+                        Cap nhat
+                      </Button>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {currentRecords.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="p-10 text-center text-sm text-gray-500">
-                        No medical records found.
-                      </td>
-                    </tr>
-                  ) : (
-                    currentRecords.map((rec) => {
-                      const appt = getAppointmentDetails(rec.appointmentId);
-                      return (
-                        <tr key={rec.id} className="border-b border-gray-100 transition-colors hover:bg-blue-50/60">
-                          <td className="p-4 font-medium text-gray-800">
-                            {appt ? getPatientName(appt.patientId) : "N/A"}
-                          </td>
-                          <td className="p-4 text-gray-600">{appt ? getDoctorName(appt.doctorId) : "N/A"}</td>
-                          <td className="p-4 text-sm text-gray-600">
-                            {appt ? formatDateTime(appt.appointmentDate) : "N/A"}
-                          </td>
-                          <td className="max-w-[220px] truncate p-4 font-medium text-blue-600">{rec.diagnosis}</td>
-                          <td className="p-4 text-sm text-gray-500">
-                            {formatDateTime(rec.createdAt ?? appt?.appointmentDate)}
-                          </td>
-                          <td className="flex justify-end gap-2 p-4">
-                            <button
-                              className="rounded-lg border border-blue-100 px-3 py-1.5 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-50"
-                              onClick={() => openDetails(rec)}
-                            >
-                              View Details
-                            </button>
-                            <button
-                              onClick={() => handleDelete(rec.id)}
-                              className="rounded-lg border border-red-100 px-3 py-1.5 text-xs font-medium text-red-500 transition-colors hover:bg-red-50"
-                            >
-                              Delete
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {totalPages > 0 && (
-              <div className="flex items-center justify-between border-t border-gray-100 bg-white p-4">
-                <span className="text-sm text-gray-600">
-                  Showing {(currentPage - 1) * pageSize + 1} to{" "}
-                  {Math.min(currentPage * pageSize, records.length)} of {records.length} entries
-                </span>
-                <div className="flex gap-1">
-                  <button
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage(1)}
-                    className="rounded-lg border border-gray-200 px-3 py-1 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    « First
-                  </button>
-                  <button
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage((p) => p - 1)}
-                    className="rounded-lg border border-gray-200 px-3 py-1 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    ‹ Prev
-                  </button>
-                  <button
-                    disabled={currentPage === totalPages}
-                    onClick={() => setCurrentPage((p) => p + 1)}
-                    className="rounded-lg border border-gray-200 px-3 py-1 text-sm font-medium text-blue-600 hover:bg-blue-50 disabled:opacity-50"
-                  >
-                    Next ›
-                  </button>
-                </div>
-              </div>
-            )}
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
+
+        <div className="flex flex-col gap-3 border-t border-slate-100 px-6 py-4 md:flex-row md:items-center md:justify-between">
+          <p className="text-sm text-slate-500">
+            Trang {pageNumber}/{totalPages}
+          </p>
+
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" onClick={() => setPageNumber(1)} disabled={pageNumber === 1}>
+              Dau
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => setPageNumber((current) => current - 1)}
+              disabled={pageNumber === 1}
+            >
+              Truoc
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => setPageNumber((current) => current + 1)}
+              disabled={pageNumber >= totalPages}
+            >
+              Sau
+            </Button>
+          </div>
+        </div>
       </Card>
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Create Medical Record">
-        <form onSubmit={handleCreate} className="mt-2 space-y-5">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Link to Appointment</label>
-            <select
-              className="w-full cursor-pointer rounded-lg border border-gray-300 bg-white px-4 py-2 outline-none transition-all focus:border-blue-400 focus:ring-2 focus:ring-blue-400"
-              value={formData.appointmentId}
-              onChange={(e) => setFormData({ ...formData, appointmentId: e.target.value })}
-              required
-            >
-              <option value="">-- Choose Completed Appointment --</option>
-              {appointments
-                .filter((a) => a.status === "Completed")
-                .map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {new Date(a.appointmentDate).toLocaleDateString()} - {getPatientName(a.patientId)}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingEncounterId(null);
+          setForm(EMPTY_FORM);
+        }}
+        title={editingEncounterId ? "Cap nhat encounter" : "Mo encounter moi"}
+      >
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {!editingEncounterId && (
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Lich hen da check-in / da hoan thanh
+              </label>
+              <select
+                value={form.appointmentId}
+                onChange={(event) => setForm((current) => ({ ...current, appointmentId: event.target.value }))}
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+                required
+              >
+                <option value="">-- Chon lich hen --</option>
+                {availableAppointments.map((appointment) => (
+                  <option key={appointment.appointmentId} value={appointment.appointmentId}>
+                    {appointment.appointmentNumber} - {appointment.patientName} - {formatDateTime(appointment.appointmentStartLocal)}
                   </option>
                 ))}
-            </select>
-          </div>
-
-          {selectedAppointmentData && (
-            <div className="flex flex-col gap-1 rounded-xl border border-blue-100 bg-blue-50/70 p-4 text-sm shadow-sm">
-              <p>
-                <span className="font-semibold text-gray-700">Patient:</span>{" "}
-                {getPatientName(selectedAppointmentData.patientId)}
-              </p>
-              <p>
-                <span className="font-semibold text-gray-700">Doctor:</span>{" "}
-                {getDoctorName(selectedAppointmentData.doctorId)}
-              </p>
-              <p>
-                <span className="font-semibold text-gray-700">Date:</span>{" "}
-                {formatDateTime(selectedAppointmentData.appointmentDate)}
-              </p>
+              </select>
             </div>
           )}
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Diagnosis</label>
-            <input
-              type="text"
-              className="w-full rounded-lg border border-gray-300 px-4 py-2 outline-none transition-all focus:border-blue-400 focus:ring-2 focus:ring-blue-400"
-              placeholder="e.g Acute Bronchitis"
-              value={formData.diagnosis}
-              onChange={(e) => setFormData({ ...formData, diagnosis: e.target.value })}
-              required
-            />
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Chan doan</label>
+              <input
+                type="text"
+                value={form.diagnosisName}
+                onChange={(event) => setForm((current) => ({ ...current, diagnosisName: event.target.value }))}
+                className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+                placeholder="Vi du: Tang huyet ap"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Ma chan doan</label>
+              <input
+                type="text"
+                value={form.diagnosisCode}
+                onChange={(event) => setForm((current) => ({ ...current, diagnosisCode: event.target.value }))}
+                className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+                placeholder="ICD-10 neu co"
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Loai chan doan</label>
+              <input
+                type="text"
+                value={form.diagnosisType}
+                onChange={(event) => setForm((current) => ({ ...current, diagnosisType: event.target.value }))}
+                className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+                placeholder="Working / Final"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Trang thai encounter</label>
+              <select
+                value={form.encounterStatus}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    encounterStatus: event.target.value as HospitalEncounterStatus,
+                  }))
+                }
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+              >
+                <option value="InProgress">Dang kham</option>
+                <option value="Finalized">Da chot ho so</option>
+              </select>
+            </div>
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Symptoms</label>
+            <label className="mb-2 block text-sm font-medium text-slate-700">Tom tat ho so</label>
             <textarea
-              required
               rows={3}
-              className="w-full resize-y rounded-lg border border-gray-300 px-4 py-2 outline-none transition-all focus:border-blue-400 focus:ring-2 focus:ring-blue-400"
-              placeholder="Describe the patient's symptoms..."
-              value={formData.symptoms}
-              onChange={(e) => setFormData({ ...formData, symptoms: e.target.value })}
+              value={form.summary}
+              onChange={(event) => setForm((current) => ({ ...current, summary: event.target.value }))}
+              className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+              placeholder="Tom tat dien bien va ket luan chung"
             />
           </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Treatment Notes (Optional)</label>
-            <textarea
-              rows={4}
-              className="w-full resize-y rounded-lg border border-gray-300 px-4 py-2 outline-none transition-all focus:border-blue-400 focus:ring-2 focus:ring-blue-400"
-              placeholder="Record any treatment notes or prescriptions given here..."
-              value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+          <div className="grid gap-4 md:grid-cols-2">
+            <TextAreaField
+              label="Trieu chung / Subjective"
+              value={form.subjective}
+              onChange={(value) => setForm((current) => ({ ...current, subjective: value }))}
+            />
+            <TextAreaField
+              label="Kham thuc the / Objective"
+              value={form.objective}
+              onChange={(value) => setForm((current) => ({ ...current, objective: value }))}
+            />
+            <TextAreaField
+              label="Danh gia / Assessment"
+              value={form.assessment}
+              onChange={(value) => setForm((current) => ({ ...current, assessment: value }))}
+            />
+            <TextAreaField
+              label="Huong dieu tri / Care plan"
+              value={form.carePlan}
+              onChange={(value) => setForm((current) => ({ ...current, carePlan: value }))}
             />
           </div>
 
-          <div className="flex justify-end gap-3 border-t border-gray-100 pt-4">
-            <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)}>
-              Cancel
+          <div className="grid gap-4 md:grid-cols-4">
+            <NumberField label="Chieu cao (cm)" value={form.heightCm} onChange={(value) => setForm((current) => ({ ...current, heightCm: value }))} />
+            <NumberField label="Can nang (kg)" value={form.weightKg} onChange={(value) => setForm((current) => ({ ...current, weightKg: value }))} />
+            <NumberField label="Nhiet do (C)" value={form.temperatureC} onChange={(value) => setForm((current) => ({ ...current, temperatureC: value }))} />
+            <NumberField label="Mach" value={form.pulseRate} onChange={(value) => setForm((current) => ({ ...current, pulseRate: value }))} />
+            <NumberField label="Nhip tho" value={form.respiratoryRate} onChange={(value) => setForm((current) => ({ ...current, respiratoryRate: value }))} />
+            <NumberField label="HA tam thu" value={form.systolicBp} onChange={(value) => setForm((current) => ({ ...current, systolicBp: value }))} />
+            <NumberField label="HA tam truong" value={form.diastolicBp} onChange={(value) => setForm((current) => ({ ...current, diastolicBp: value }))} />
+            <NumberField label="SpO2 (%)" value={form.oxygenSaturation} onChange={(value) => setForm((current) => ({ ...current, oxygenSaturation: value }))} />
+          </div>
+
+          <div className="flex justify-end gap-3 border-t border-slate-100 pt-5">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setIsModalOpen(false);
+                setEditingEncounterId(null);
+                setForm(EMPTY_FORM);
+              }}
+            >
+              Dong
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Saving..." : "Save Record"}
+              {isSubmitting ? "Dang luu..." : editingEncounterId ? "Cap nhat ho so" : "Tao ho so"}
             </Button>
           </div>
         </form>
       </Modal>
+    </div>
+  );
+}
 
-      <Modal isOpen={isDetailModalOpen} onClose={closeDetails} title="Medical Record Details">
-        {selectedRecord ? (
-          <div className="space-y-4 text-sm">
-            <div className="grid grid-cols-1 gap-3 rounded-xl border border-gray-100 bg-gray-50 p-4 md:grid-cols-2">
-              <div>
-                <p className="text-gray-500">Patient</p>
-                <p className="font-semibold text-gray-800">
-                  {selectedRecordAppointment ? getPatientName(selectedRecordAppointment.patientId) : "N/A"}
-                </p>
-              </div>
-              <div>
-                <p className="text-gray-500">Doctor</p>
-                <p className="font-semibold text-gray-800">
-                  {selectedRecordAppointment ? getDoctorName(selectedRecordAppointment.doctorId) : "N/A"}
-                </p>
-              </div>
-              <div>
-                <p className="text-gray-500">Appointment Date</p>
-                <p className="font-semibold text-gray-800">
-                  {selectedRecordAppointment ? formatDateTime(selectedRecordAppointment.appointmentDate) : "N/A"}
-                </p>
-              </div>
-              <div>
-                <p className="text-gray-500">Created At</p>
-                <p className="font-semibold text-gray-800">
-                  {formatDateTime(selectedRecord.createdAt ?? selectedRecordAppointment?.appointmentDate)}
-                </p>
-              </div>
-            </div>
+function MetricCard({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone: "amber" | "emerald" | "cyan";
+}) {
+  const toneClasses = {
+    amber: "border-amber-100 bg-amber-50/70 text-amber-700",
+    emerald: "border-emerald-100 bg-emerald-50/70 text-emerald-700",
+    cyan: "border-cyan-100 bg-cyan-50/70 text-cyan-700",
+  };
 
-            <div className="rounded-xl border border-gray-100 p-4">
-              <p className="mb-1 text-gray-500">Diagnosis</p>
-              <p className="font-semibold text-blue-700">{selectedRecord.diagnosis || "N/A"}</p>
-            </div>
+  return (
+    <Card className={`border p-5 shadow-sm hover:shadow-sm ${toneClasses[tone]}`}>
+      <p className="text-xs font-bold uppercase tracking-[0.2em]">{label}</p>
+      <p className="mt-3 text-3xl font-bold text-slate-950">{value}</p>
+    </Card>
+  );
+}
 
-            <div className="rounded-xl border border-gray-100 p-4">
-              <p className="mb-1 text-gray-500">Symptoms</p>
-              <p className="whitespace-pre-wrap text-gray-800">{selectedRecord.symptoms || "N/A"}</p>
-            </div>
+function TextAreaField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-medium text-slate-700">{label}</label>
+      <textarea
+        rows={4}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+      />
+    </div>
+  );
+}
 
-            <div className="rounded-xl border border-gray-100 p-4">
-              <p className="mb-1 text-gray-500">Treatment Notes</p>
-              <p className="whitespace-pre-wrap text-gray-800">{selectedRecord.notes || "N/A"}</p>
-            </div>
-
-            <div className="flex justify-end pt-2">
-              <Button type="button" variant="secondary" onClick={closeDetails}>
-                Close
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="py-6 text-center text-gray-500">No detail available.</div>
-        )}
-      </Modal>
+function NumberField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-medium text-slate-700">{label}</label>
+      <input
+        type="number"
+        step="0.1"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+      />
     </div>
   );
 }

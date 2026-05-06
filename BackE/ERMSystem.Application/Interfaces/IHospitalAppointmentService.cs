@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using ERMSystem.Application.DTOs;
+using ERMSystem.Application.DTOs.Common;
 
 namespace ERMSystem.Application.Interfaces
 {
@@ -8,6 +9,20 @@ namespace ERMSystem.Application.Interfaces
     {
         Task<HospitalAppointmentBookingResultDto> BookPublicAppointmentAsync(
             PublicHospitalAppointmentBookingRequestDto request,
+            CancellationToken ct = default);
+
+        Task<PaginatedResult<HospitalAppointmentWorklistItemDto>> GetWorklistAsync(
+            HospitalAppointmentWorklistRequestDto request,
+            CancellationToken ct = default);
+
+        Task<HospitalAppointmentWorklistItemDto?> CheckInAsync(
+            Guid appointmentId,
+            HospitalAppointmentCheckInRequestDto request,
+            CancellationToken ct = default);
+
+        Task<HospitalAppointmentWorklistItemDto?> UpdateStatusAsync(
+            Guid appointmentId,
+            HospitalAppointmentStatusUpdateRequestDto request,
             CancellationToken ct = default);
     }
 }
