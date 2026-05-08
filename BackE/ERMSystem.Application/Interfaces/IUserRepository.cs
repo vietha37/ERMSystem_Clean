@@ -19,6 +19,7 @@ namespace ERMSystem.Application.Interfaces
             string? role = null,
             string? textSearch = null,
             CancellationToken ct = default);
+        Task<IReadOnlyList<AppUser>> GetInternalUsersAsync(CancellationToken ct = default);
         Task UpdateAsync(AppUser user, CancellationToken ct = default);
         Task DeleteAsync(AppUser user, CancellationToken ct = default);
     }

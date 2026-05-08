@@ -1,4 +1,4 @@
-import { PublicPageShell } from "@/components/public/PublicPageShell";
+﻿import { PublicPageShell } from "@/components/public/PublicPageShell";
 import { SectionHeading } from "@/components/public/SectionHeading";
 import { serviceCategories } from "@/content/hospitalContent";
 import { hospitalCatalogService } from "@/services/hospitalCatalogService";
@@ -21,7 +21,7 @@ export default async function ServicesPage() {
   }
 
   const groupedServices = servicesFromApi.reduce<Record<string, typeof servicesFromApi>>((acc, service) => {
-    const key = service.category || "Khac";
+    const key = service.category || "Khác";
     acc[key] ??= [];
     acc[key].push(service);
     return acc;
@@ -33,9 +33,9 @@ export default async function ServicesPage() {
     <PublicPageShell>
       <section className="mx-auto max-w-7xl px-4 py-16 md:px-6 md:py-22">
         <SectionHeading
-          eyebrow="Danh muc dich vu"
-          title="Cau truc dich vu duoc dong bo voi database dich cua benh vien tu."
-          description="Frontend co the bam truc tiep vao danh muc van hanh that thay vi chi dung noi dung mo ta co dinh."
+          eyebrow="Danh mục dịch vụ"
+          title="Cấu trúc dịch vụ được đồng bộ với database đích của bệnh viện tư."
+          description="Frontend có thể bám trực tiếp vào danh mục vận hành thật thay vì chỉ dùng nội dung mô tả cố định."
         />
 
         {hasApiData ? (
@@ -44,10 +44,10 @@ export default async function ServicesPage() {
               <article key={category} className="rounded-[2rem] border border-slate-200 bg-white p-7 shadow-[0_20px_55px_rgba(15,23,42,0.05)]">
                 <p className="text-sm font-semibold uppercase tracking-[0.24em] text-cyan-700">{category}</p>
                 <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950">
-                  {items.length} dich vu san sang cho van hanh thuc te
+                  {items.length} dịch vụ sẵn sàng cho vận hành thực tế
                 </h2>
                 <p className="mt-4 text-sm leading-7 text-slate-600">
-                  Danh muc nay duoc lay truc tiep tu ERMSystemHospitalDb de backend va frontend dung cung mot nguon su that.
+                  Danh mục này được lấy trực tiếp từ ERMSystemHospitalDb để backend và frontend dùng cùng một nguồn sự thật.
                 </p>
                 <ul className="mt-6 grid gap-3">
                   {items.map((item) => (

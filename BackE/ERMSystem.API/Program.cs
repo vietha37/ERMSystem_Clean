@@ -68,6 +68,7 @@ builder.Services.AddOpenApi();
 // ── DI – Auth ─────────────────────────────────────────────────────────────────
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IHospitalIdentityBridgeService, HospitalIdentityBridgeService>();
 
 // ── DI – Patient ──────────────────────────────────────────────────────────────
 builder.Services.AddScoped<IPatientRepository, PatientRepository>();
@@ -110,6 +111,10 @@ builder.Services.AddScoped<IHospitalEncounterRepository, HospitalEncounterReposi
 builder.Services.AddScoped<IHospitalEncounterService, HospitalEncounterService>();
 builder.Services.AddScoped<IHospitalPrescriptionRepository, HospitalPrescriptionRepository>();
 builder.Services.AddScoped<IHospitalPrescriptionService, HospitalPrescriptionService>();
+builder.Services.AddScoped<IHospitalClinicalOrderRepository, HospitalClinicalOrderRepository>();
+builder.Services.AddScoped<IHospitalClinicalOrderService, HospitalClinicalOrderService>();
+builder.Services.AddScoped<IHospitalBillingRepository, HospitalBillingRepository>();
+builder.Services.AddScoped<IHospitalBillingService, HospitalBillingService>();
 builder.Services.AddScoped<IHospitalPatientPortalRepository, HospitalPatientPortalRepository>();
 builder.Services.AddScoped<IHospitalPatientPortalService, HospitalPatientPortalService>();
 builder.Services.AddScoped<IHospitalNotificationDeliveryRepository, HospitalNotificationDeliveryRepository>();

@@ -36,6 +36,7 @@ public class HospitalPrescriptionSummaryDto
     public Guid PrescriptionId { get; set; }
     public string PrescriptionNumber { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
+    public string? LatestDispensingStatus { get; set; }
     public Guid EncounterId { get; set; }
     public string EncounterNumber { get; set; } = string.Empty;
     public Guid PatientId { get; set; }
@@ -48,6 +49,8 @@ public class HospitalPrescriptionSummaryDto
     public string? PrimaryDiagnosisName { get; set; }
     public int TotalItems { get; set; }
     public DateTime CreatedAtLocal { get; set; }
+    public DateTime? DispensedAtLocal { get; set; }
+    public string? DispensedByUsername { get; set; }
     public string? Notes { get; set; }
 }
 
@@ -71,6 +74,8 @@ public class HospitalPrescriptionItemDto
 
 public class HospitalPrescriptionDetailDto : HospitalPrescriptionSummaryDto
 {
+    public Guid? LatestDispensingId { get; set; }
+    public string? DispensingNotes { get; set; }
     public List<HospitalPrescriptionItemDto> Items { get; set; } = new();
 }
 
@@ -127,4 +132,10 @@ public class CreateHospitalPrescriptionDto
 
     [MinLength(1)]
     public List<CreateHospitalPrescriptionItemDto> Items { get; set; } = new();
+}
+
+public class DispenseHospitalPrescriptionDto
+{
+    [MaxLength(1000)]
+    public string? Notes { get; set; }
 }

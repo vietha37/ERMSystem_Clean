@@ -313,6 +313,7 @@ export type HospitalPrescriptionSummary = {
   prescriptionId: Id;
   prescriptionNumber: string;
   status: HospitalPrescriptionStatus;
+  latestDispensingStatus?: string | null;
   encounterId: Id;
   encounterNumber: string;
   patientId: Id;
@@ -325,6 +326,8 @@ export type HospitalPrescriptionSummary = {
   primaryDiagnosisName?: string | null;
   totalItems: number;
   createdAtLocal: string;
+  dispensedAtLocal?: string | null;
+  dispensedByUsername?: string | null;
   notes?: string | null;
 };
 
@@ -346,6 +349,8 @@ export type HospitalPrescriptionItem = {
 };
 
 export type HospitalPrescriptionDetail = HospitalPrescriptionSummary & {
+  latestDispensingId?: Id | null;
+  dispensingNotes?: string | null;
   items: HospitalPrescriptionItem[];
 };
 
@@ -387,6 +392,211 @@ export type CreateHospitalPrescriptionPayload = {
   status?: HospitalPrescriptionStatus;
   notes?: string;
   items: CreateHospitalPrescriptionItemPayload[];
+};
+
+export type DispenseHospitalPrescriptionPayload = {
+  notes?: string;
+};
+
+export type HospitalClinicalOrderCategory = "Lab" | "Imaging";
+export type HospitalClinicalOrderStatus = "Requested" | "Completed";
+
+export type HospitalClinicalOrderCatalogItem = {
+  serviceId: Id;
+  category: HospitalClinicalOrderCategory;
+  serviceCode: string;
+  serviceName: string;
+  extraLabel?: string | null;
+};
+
+export type HospitalClinicalOrderEligibleEncounter = {
+  encounterId: Id;
+  encounterNumber: string;
+  patientId: Id;
+  patientName: string;
+  medicalRecordNumber: string;
+  doctorProfileId: Id;
+  doctorName: string;
+  specialtyName: string;
+  clinicName: string;
+  encounterStatus: string;
+  primaryDiagnosisName?: string | null;
+  startedAtLocal: string;
+};
+
+export type HospitalClinicalOrderSummary = {
+  clinicalOrderId: Id;
+  orderHeaderId: Id;
+  orderNumber: string;
+  category: HospitalClinicalOrderCategory;
+  status: HospitalClinicalOrderStatus;
+  encounterId: Id;
+  encounterNumber: string;
+  patientId: Id;
+  patientName: string;
+  medicalRecordNumber: string;
+  doctorName: string;
+  specialtyName: string;
+  clinicName: string;
+  serviceCode: string;
+  serviceName: string;
+  priorityCode?: string | null;
+  requestedAtLocal: string;
+  completedAtLocal?: string | null;
+  orderedByUsername?: string | null;
+  resultItemCount: number;
+  summaryText?: string | null;
+};
+
+export type HospitalLabResultItem = {
+  resultItemId: Id;
+  analyteCode?: string | null;
+  analyteName: string;
+  resultValue?: string | null;
+  unit?: string | null;
+  referenceRange?: string | null;
+  abnormalFlag?: string | null;
+};
+
+export type HospitalClinicalOrderDetail = HospitalClinicalOrderSummary & {
+  specimenId?: Id | null;
+  specimenCode?: string | null;
+  specimenStatus?: string | null;
+  collectedAtLocal?: string | null;
+  receivedAtLocal?: string | null;
+  findings?: string | null;
+  impression?: string | null;
+  reportUri?: string | null;
+  signedByUsername?: string | null;
+  signedAtLocal?: string | null;
+  resultItems: HospitalLabResultItem[];
+};
+
+export type HospitalClinicalOrderWorklistQuery = {
+  pageNumber?: number;
+  pageSize?: number;
+  category?: HospitalClinicalOrderCategory | "All";
+  status?: HospitalClinicalOrderStatus | "All";
+  textSearch?: string;
+};
+
+export type CreateHospitalClinicalOrderPayload = {
+  encounterId: Id;
+  category: HospitalClinicalOrderCategory;
+  serviceId: Id;
+  priorityCode?: string;
+};
+
+export type RecordHospitalLabResultItemPayload = {
+  analyteCode?: string;
+  analyteName: string;
+  resultValue?: string;
+  unit?: string;
+  referenceRange?: string;
+  abnormalFlag?: string;
+};
+
+export type RecordHospitalLabResultPayload = {
+  specimenCode?: string;
+  resultItems: RecordHospitalLabResultItemPayload[];
+};
+
+export type RecordHospitalImagingReportPayload = {
+  findings?: string;
+  impression?: string;
+  reportUri?: string;
+};
+
+export type HospitalInvoiceStatus = "Issued" | "PartiallyPaid" | "Paid" | "Cancelled";
+
+export type HospitalInvoiceSummary = {
+  invoiceId: Id;
+  invoiceNumber: string;
+  patientId: Id;
+  patientName: string;
+  medicalRecordNumber: string;
+  encounterId?: Id | null;
+  encounterNumber?: string | null;
+  invoiceStatus: HospitalInvoiceStatus;
+  subtotalAmount: number;
+  discountAmount: number;
+  insuranceAmount: number;
+  totalAmount: number;
+  paidAmount: number;
+  balanceAmount: number;
+  totalItems: number;
+  totalPayments: number;
+  issuedAtLocal: string;
+  dueAtLocal?: string | null;
+};
+
+export type HospitalInvoiceItem = {
+  invoiceItemId: Id;
+  serviceCatalogId?: Id | null;
+  itemType: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  lineAmount: number;
+  referenceType?: string | null;
+  referenceId?: Id | null;
+};
+
+export type HospitalPayment = {
+  paymentId: Id;
+  paymentReference: string;
+  paymentMethod: string;
+  amount: number;
+  paymentStatus: string;
+  paidAtLocal?: string | null;
+  receivedByUsername?: string | null;
+  externalTransactionId?: string | null;
+};
+
+export type HospitalInvoiceDetail = HospitalInvoiceSummary & {
+  doctorName?: string | null;
+  specialtyName?: string | null;
+  clinicName?: string | null;
+  items: HospitalInvoiceItem[];
+  payments: HospitalPayment[];
+};
+
+export type HospitalBillingEligibleEncounter = {
+  encounterId: Id;
+  encounterNumber: string;
+  patientId: Id;
+  patientName: string;
+  medicalRecordNumber: string;
+  doctorName: string;
+  specialtyName: string;
+  clinicName: string;
+  consultationFee: number;
+  completedLabOrders: number;
+  completedImagingOrders: number;
+  billedPrescriptionItems: number;
+  existingInvoiceId?: Id | null;
+  existingInvoiceNumber?: string | null;
+  startedAtLocal: string;
+};
+
+export type HospitalInvoiceWorklistQuery = {
+  pageNumber?: number;
+  pageSize?: number;
+  invoiceStatus?: HospitalInvoiceStatus | "All";
+  textSearch?: string;
+};
+
+export type CreateHospitalInvoicePayload = {
+  encounterId: Id;
+  discountAmount?: number;
+  insuranceAmount?: number;
+};
+
+export type ReceiveHospitalPaymentPayload = {
+  paymentMethod: string;
+  paymentReference?: string;
+  amount: number;
+  externalTransactionId?: string;
 };
 
 export type HospitalDoctorWorklistItem = {

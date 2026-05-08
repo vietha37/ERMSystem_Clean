@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
@@ -45,7 +45,7 @@ export function BookingForm({
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!selectedDoctor) {
-      toast.error("He thong chua co bac si phu hop de dat lich.");
+      toast.error("Hệ thống chưa có bác sĩ phù hợp để đặt lịch.");
       return;
     }
 
@@ -71,12 +71,12 @@ export function BookingForm({
 
     try {
       const result = await hospitalAppointmentService.bookPublicAppointment(payload);
-      toast.success(`Da dat lich thanh cong. Ma lich hen: ${result.appointmentNumber}`);
+      toast.success(`Đặt lịch thành công. Mã lịch hẹn: ${result.appointmentNumber}`);
       form.reset();
       setSelectedSpecialtyId(specialtyOptions[0]?.id ?? "");
       setSelectedDoctorId("");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Khong the dat lich luc nay.";
+      const message = error instanceof Error ? error.message : "Không thể đặt lịch lúc này.";
       toast.error(message);
     } finally {
       setSubmitting(false);
@@ -88,21 +88,21 @@ export function BookingForm({
       onSubmit={handleSubmit}
       className="grid gap-4 rounded-[2rem] border border-slate-200 bg-white/92 p-6 shadow-[0_30px_90px_rgba(15,23,42,0.08)] backdrop-blur md:grid-cols-2 md:p-8"
     >
-      <Field name="fullName" label="Ho va ten" placeholder="Nguyen Van A" required />
-      <Field name="phone" label="So dien thoai" placeholder="09xx xxx xxx" required />
+      <Field name="fullName" label="Họ và tên" placeholder="Nguyễn Văn A" required />
+      <Field name="phone" label="Số điện thoại" placeholder="09xx xxx xxx" required />
       <Field name="email" label="Email" placeholder="tenban@email.com" />
-      <Field name="dateOfBirth" label="Ngay sinh" type="date" required />
+      <Field name="dateOfBirth" label="Ngày sinh" type="date" required />
       <SelectField
-        label="Gioi tinh"
+        label="Giới tính"
         name="gender"
         options={[
           { value: "Nam", label: "Nam" },
-          { value: "Nu", label: "Nu" },
-          { value: "Khac", label: "Khac" },
+          { value: "Nu", label: "Nữ" },
+          { value: "Khac", label: "Khác" },
         ]}
       />
       <SelectField
-        label="Chuyen khoa"
+        label="Chuyên khoa"
         name="specialtyId"
         value={selectedSpecialtyId}
         onChange={setSelectedSpecialtyId}
@@ -112,7 +112,7 @@ export function BookingForm({
         }))}
       />
       <SelectField
-        label="Bac si"
+        label="Bác sĩ"
         name="doctorProfileId"
         value={selectedDoctorId}
         onChange={setSelectedDoctorId}
@@ -123,7 +123,7 @@ export function BookingForm({
         }))}
       />
       <label className="grid gap-2 text-sm font-medium text-slate-700">
-        Dich vu quan tam
+        Dịch vụ quan tâm
         <select
           name="serviceCode"
           className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-900 outline-none transition focus:border-cyan-500 focus:bg-white"
@@ -133,30 +133,30 @@ export function BookingForm({
           ))}
         </select>
       </label>
-      <Field name="preferredDate" label="Ngay mong muon" type="date" required />
-      <Field name="preferredTime" label="Gio bat dau" type="time" required />
+      <Field name="preferredDate" label="Ngày mong muốn" type="date" required />
+      <Field name="preferredTime" label="Giờ bắt đầu" type="time" required />
       <label className="md:col-span-2 grid gap-2 text-sm font-medium text-slate-700">
-        Trieu chung / nhu cau chinh
+        Triệu chứng / nhu cầu chính
         <textarea
           name="chiefComplaint"
           rows={4}
-          placeholder="Vi du: dau nguc nhe, can tu van tim mach, muon dat lich buoi sang."
+          placeholder="Ví dụ: đau ngực nhẹ, cần tư vấn tim mạch, muốn đặt lịch buổi sáng."
           className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-cyan-500 focus:bg-white"
         />
       </label>
       <label className="md:col-span-2 grid gap-2 text-sm font-medium text-slate-700">
-        Ghi chu bo sung
+        Ghi chú bổ sung
         <textarea
           name="notes"
           rows={3}
-          placeholder="Thong tin them cho dieu phoi vien neu can."
+          placeholder="Thông tin thêm cho điều phối viên nếu cần."
           className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-cyan-500 focus:bg-white"
         />
       </label>
 
       {selectedDoctor ? (
         <div className="md:col-span-2 rounded-[1.6rem] border border-cyan-100 bg-cyan-50/60 p-4 text-sm text-slate-700">
-          <p className="font-semibold text-slate-900">Lich lam viec hien co cua bac si {selectedDoctor.fullName}</p>
+          <p className="font-semibold text-slate-900">Lịch làm việc hiện có của bác sĩ {selectedDoctor.fullName}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {selectedDoctor.schedules.map((schedule) => (
               <span key={schedule.scheduleId} className="rounded-full border border-cyan-200 bg-white px-3 py-2 text-xs text-slate-700">
@@ -169,14 +169,14 @@ export function BookingForm({
 
       <div className="md:col-span-2 flex flex-col gap-4 pt-2 md:flex-row md:items-center md:justify-between">
         <p className="max-w-2xl text-sm leading-6 text-slate-500">
-          Sau khi gui, he thong se tao lich hen va dua su kien vao outbox de Notification Service co the nhac lich o cac buoc sau.
+          Sau khi gửi, hệ thống sẽ tạo lịch hẹn và đưa sự kiện vào outbox để Notification Service có thể nhắc lịch ở các bước sau.
         </p>
         <button
           type="submit"
           disabled={submitting || !selectedDoctor}
           className="inline-flex h-12 items-center justify-center rounded-full bg-slate-950 px-6 text-sm font-semibold text-white transition hover:bg-cyan-700 disabled:cursor-not-allowed disabled:opacity-70"
         >
-          {submitting ? "Dang gui yeu cau..." : "Gui yeu cau dat lich"}
+          {submitting ? "Đang gửi yêu cầu..." : "Gửi yêu cầu đặt lịch"}
         </button>
       </div>
     </form>
@@ -248,20 +248,20 @@ function SelectField({
 function formatDayOfWeek(dayOfWeek: number) {
   switch (dayOfWeek) {
     case 1:
-      return "Thu 2";
+      return "Thứ 2";
     case 2:
-      return "Thu 3";
+      return "Thứ 3";
     case 3:
-      return "Thu 4";
+      return "Thứ 4";
     case 4:
-      return "Thu 5";
+      return "Thứ 5";
     case 5:
-      return "Thu 6";
+      return "Thứ 6";
     case 6:
-      return "Thu 7";
+      return "Thứ 7";
     case 0:
-      return "Chu nhat";
+      return "Chủ nhật";
     default:
-      return "Khac";
+      return "Khác";
   }
 }

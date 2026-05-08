@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { PublicPageShell } from "@/components/public/PublicPageShell";
 import { SectionHeading } from "@/components/public/SectionHeading";
 import {
@@ -231,7 +231,7 @@ export default function HomePage() {
           <SectionHeading
             eyebrow="Mở rộng hệ thống"
             title="Từ website public này, mình có thể nâng tiếp toàn bộ mặt trước của dự án."
-            description="Lớp tiếp theo hợp lý là làm đồng bộ các trang dashboard nội bộ, module đặt lịch thật, tra cứu kết quả, hồ sơ bác sĩ chi tiết và tin tức động từ CMS/API."
+            description="Lớp tiếp theo hợp lý là làm đồng bộ các trang dashboard nội bộ, module đặt lịch thật, tra cứu kết quả, hồ sơ bác sĩ chi tiết và tin tức động từ CMS hoặc API."
           />
           <div className="mt-8 flex flex-wrap gap-4">
             <Link

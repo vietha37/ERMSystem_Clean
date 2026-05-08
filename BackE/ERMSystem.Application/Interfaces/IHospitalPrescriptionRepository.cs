@@ -21,6 +21,9 @@ public interface IHospitalPrescriptionRepository
     Task AddOrderHeaderAsync(HospitalPrescriptionOrderHeaderCreateCommand command, CancellationToken ct = default);
     Task AddPrescriptionAsync(HospitalPrescriptionCreateCommand command, CancellationToken ct = default);
     Task AddPrescriptionItemAsync(HospitalPrescriptionItemCreateCommand command, CancellationToken ct = default);
+    Task AddDispensingAsync(HospitalPrescriptionDispensingCreateCommand command, CancellationToken ct = default);
+    Task UpdatePrescriptionStatusAsync(Guid prescriptionId, string status, CancellationToken ct = default);
+    Task UpdateOrderHeaderStatusAsync(Guid orderHeaderId, string status, CancellationToken ct = default);
     Task AddOutboxMessageAsync(HospitalPrescriptionOutboxCreateCommand command, CancellationToken ct = default);
     Task DeletePrescriptionAsync(Guid prescriptionId, CancellationToken ct = default);
     Task SaveChangesAsync(CancellationToken ct = default);
@@ -29,8 +32,15 @@ public interface IHospitalPrescriptionRepository
 public class HospitalPrescriptionAggregateSnapshot
 {
     public Guid PrescriptionId { get; set; }
+    public Guid OrderHeaderId { get; set; }
     public string PrescriptionNumber { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
+    public Guid? LatestDispensingId { get; set; }
+    public string? LatestDispensingStatus { get; set; }
+    public DateTime? DispensedAtUtc { get; set; }
+    public Guid? DispensedByUserId { get; set; }
+    public string? DispensedByUsername { get; set; }
+    public string? DispensingNotes { get; set; }
     public Guid EncounterId { get; set; }
     public string EncounterNumber { get; set; } = string.Empty;
     public Guid PatientId { get; set; }
@@ -135,4 +145,14 @@ public class HospitalPrescriptionOutboxCreateCommand
     public string PayloadJson { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public DateTime AvailableAtUtc { get; set; }
+}
+
+public class HospitalPrescriptionDispensingCreateCommand
+{
+    public Guid DispensingId { get; set; }
+    public Guid PrescriptionId { get; set; }
+    public string DispensingStatus { get; set; } = string.Empty;
+    public DateTime DispensedAtUtc { get; set; }
+    public Guid? DispensedByUserId { get; set; }
+    public string? Notes { get; set; }
 }

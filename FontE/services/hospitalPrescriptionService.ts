@@ -1,6 +1,7 @@
 import api from "./api";
 import {
   CreateHospitalPrescriptionPayload,
+  DispenseHospitalPrescriptionPayload,
   HospitalMedicineCatalog,
   HospitalPrescriptionDetail,
   HospitalPrescriptionEligibleEncounter,
@@ -69,5 +70,17 @@ export const hospitalPrescriptionService = {
 
   delete: async (prescriptionId: string): Promise<void> => {
     await api.delete(`/hospital-prescriptions/${prescriptionId}`);
+  },
+
+  dispense: async (
+    prescriptionId: string,
+    payload: DispenseHospitalPrescriptionPayload
+  ): Promise<HospitalPrescriptionDetail> => {
+    const response = await api.post<HospitalPrescriptionDetail>(
+      `/hospital-prescriptions/${prescriptionId}/dispense`,
+      payload
+    );
+
+    return response.data;
   },
 };

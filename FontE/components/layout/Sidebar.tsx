@@ -9,33 +9,36 @@ export function Sidebar() {
 
   const menuItemsByRole: Record<UserRole, Array<{ name: string; path: string }>> = {
     Admin: [
-      { name: "Tong quan", path: "/dashboard" },
-      { name: "Worklist bac si", path: "/doctor-worklist" },
-      { name: "Nhan su", path: "/staff" },
-      { name: "Benh nhan", path: "/patients" },
-      { name: "Lich hen", path: "/appointments" },
-      { name: "Ho so benh an", path: "/medical-records" },
-      { name: "Don thuoc", path: "/prescriptions" },
-      { name: "Thong bao", path: "/notifications" },
+      { name: "Tổng quan", path: "/dashboard" },
+      { name: "Worklist bác sĩ", path: "/doctor-worklist" },
+      { name: "Nhân sự", path: "/staff" },
+      { name: "Bệnh nhân", path: "/patients" },
+      { name: "Lịch hẹn", path: "/appointments" },
+      { name: "Hồ sơ bệnh án", path: "/medical-records" },
+      { name: "Đơn thuốc", path: "/prescriptions" },
+      { name: "Chỉ định cận lâm sàng", path: "/clinical-orders" },
+      { name: "Hóa đơn", path: "/billing" },
+      { name: "Thông báo", path: "/notifications" },
     ],
     Doctor: [
-      { name: "Tong quan", path: "/dashboard" },
-      { name: "Worklist bac si", path: "/doctor-worklist" },
-      { name: "Benh nhan", path: "/patients" },
-      { name: "Lich hen", path: "/appointments" },
-      { name: "Ho so benh an", path: "/medical-records" },
-      { name: "Don thuoc", path: "/prescriptions" },
+      { name: "Tổng quan", path: "/dashboard" },
+      { name: "Worklist bác sĩ", path: "/doctor-worklist" },
+      { name: "Bệnh nhân", path: "/patients" },
+      { name: "Lịch hẹn", path: "/appointments" },
+      { name: "Hồ sơ bệnh án", path: "/medical-records" },
+      { name: "Đơn thuốc", path: "/prescriptions" },
+      { name: "Chỉ định cận lâm sàng", path: "/clinical-orders" },
     ],
     Receptionist: [
-      { name: "Tong quan", path: "/dashboard" },
-      { name: "Worklist bac si", path: "/doctor-worklist" },
-      { name: "Benh nhan", path: "/patients" },
-      { name: "Lich hen", path: "/appointments" },
-      { name: "Thong bao", path: "/notifications" },
+      { name: "Tổng quan", path: "/dashboard" },
+      { name: "Worklist bác sĩ", path: "/doctor-worklist" },
+      { name: "Bệnh nhân", path: "/patients" },
+      { name: "Lịch hẹn", path: "/appointments" },
+      { name: "Chỉ định cận lâm sàng", path: "/clinical-orders" },
+      { name: "Hóa đơn", path: "/billing" },
+      { name: "Thông báo", path: "/notifications" },
     ],
-    Patient: [
-      { name: "Cong thong tin benh nhan", path: "/portal" },
-    ],
+    Patient: [{ name: "Cổng thông tin bệnh nhân", path: "/portal" }],
   };
 
   const menuItems = role ? menuItemsByRole[role] : [];
@@ -45,7 +48,7 @@ export function Sidebar() {
       <div className="border-b border-gray-100 p-6">
         <h1 className="text-2xl font-bold text-blue-600">ERM Hospital</h1>
         <p className="mt-1 text-xs font-medium uppercase tracking-wide text-gray-400">
-          {role ?? "Khong xac dinh"}
+          {role ?? "Không xác định"}
         </p>
       </div>
 
@@ -66,7 +69,7 @@ export function Sidebar() {
           onClick={logout}
           className="w-full rounded-xl px-4 py-3 text-left font-medium text-red-500 transition-colors hover:bg-red-50"
         >
-          Dang xuat
+          Đăng xuất
         </button>
       </div>
     </aside>

@@ -58,7 +58,11 @@ public class HospitalEncountersController : ControllerBase
 
         try
         {
-            var result = await _hospitalEncounterService.CreateAsync(request, ResolveActorUserId(), ct);
+            var result = await _hospitalEncounterService.CreateAsync(
+                request,
+                ResolveActorUserId(),
+                ResolveActorUsername(),
+                ct);
             return CreatedAtAction(nameof(GetById), new { encounterId = result.EncounterId }, result);
         }
         catch (KeyNotFoundException ex)
@@ -84,7 +88,12 @@ public class HospitalEncountersController : ControllerBase
 
         try
         {
-            var result = await _hospitalEncounterService.UpdateAsync(encounterId, request, ResolveActorUserId(), ct);
+            var result = await _hospitalEncounterService.UpdateAsync(
+                encounterId,
+                request,
+                ResolveActorUserId(),
+                ResolveActorUsername(),
+                ct);
             if (result == null)
             {
                 return NotFound(new { message = "Khong tim thay encounter can cap nhat." });
@@ -105,5 +114,12 @@ public class HospitalEncountersController : ControllerBase
                      ?? User.FindFirstValue("sub");
 
         return Guid.TryParse(userId, out var parsedUserId) ? parsedUserId : null;
+    }
+
+    private string? ResolveActorUsername()
+    {
+        return User.FindFirstValue(ClaimTypes.Name)
+               ?? User.FindFirstValue(ClaimTypes.Upn)
+               ?? User.FindFirstValue("unique_name");
     }
 }

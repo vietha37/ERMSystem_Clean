@@ -17,10 +17,14 @@ namespace ERMSystem.API.Controllers
     public class AdminUsersController : ControllerBase
     {
         private readonly IUserRepository _userRepository;
+        private readonly IHospitalIdentityBridgeService _hospitalIdentityBridgeService;
 
-        public AdminUsersController(IUserRepository userRepository)
+        public AdminUsersController(
+            IUserRepository userRepository,
+            IHospitalIdentityBridgeService hospitalIdentityBridgeService)
         {
             _userRepository = userRepository;
+            _hospitalIdentityBridgeService = hospitalIdentityBridgeService;
         }
 
         [HttpGet]
@@ -82,6 +86,7 @@ namespace ERMSystem.API.Controllers
             };
 
             await _userRepository.AddAsync(user);
+            await _hospitalIdentityBridgeService.SyncInternalUserAsync(user, ct: ct);
 
             var created = new AdminUserDto
             {
@@ -117,6 +122,7 @@ namespace ERMSystem.API.Controllers
                 return Conflict($"Username '{dto.Username}' is already taken.");
             }
 
+            var previousUsername = user.Username;
             user.Username = dto.Username.Trim();
 
             if (!string.IsNullOrWhiteSpace(dto.Role))
@@ -130,6 +136,7 @@ namespace ERMSystem.API.Controllers
             }
 
             await _userRepository.UpdateAsync(user, ct);
+            await _hospitalIdentityBridgeService.SyncInternalUserAsync(user, previousUsername, ct);
 
             return NoContent();
         }
@@ -149,7 +156,16 @@ namespace ERMSystem.API.Controllers
             }
 
             await _userRepository.DeleteAsync(user, ct);
+            await _hospitalIdentityBridgeService.DeactivateInternalUserAsync(user, ct);
             return NoContent();
+        }
+
+        [HttpPost("sync-hospital-identity")]
+        public async Task<IActionResult> SyncHospitalIdentity(CancellationToken ct)
+        {
+            var internalUsers = await _userRepository.GetInternalUsersAsync(ct);
+            var result = await _hospitalIdentityBridgeService.SyncInternalUsersAsync(internalUsers, ct);
+            return Ok(result);
         }
     }
 }

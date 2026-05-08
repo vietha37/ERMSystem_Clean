@@ -20,9 +20,9 @@ const ENCOUNTER_STATUS_OPTIONS: Array<{
   value: HospitalEncounterStatus | "All";
   label: string;
 }> = [
-  { value: "All", label: "Tat ca" },
-  { value: "InProgress", label: "Dang kham" },
-  { value: "Finalized", label: "Da chot ho so" },
+  { value: "All", label: "Tất cả" },
+  { value: "InProgress", label: "Đang khám" },
+  { value: "Finalized", label: "Đã chốt hồ sơ" },
 ];
 
 type EncounterFormState = {
@@ -83,9 +83,9 @@ function formatDateTime(value?: string | null): string {
 function getEncounterStatusLabel(status: HospitalEncounterStatus): string {
   switch (status) {
     case "InProgress":
-      return "Dang kham";
+      return "Đang khám";
     case "Finalized":
-      return "Da chot ho so";
+      return "Đã chốt hồ sơ";
     default:
       return status;
   }
@@ -237,7 +237,7 @@ export default function MedicalRecordsPage() {
         setTotalCount(worklist.totalCount);
         setEligibleAppointments(appointments);
       } catch (error: unknown) {
-        toast.error(getApiErrorMessage(error, "Khong the tai du lieu EMR."));
+        toast.error(getApiErrorMessage(error, "Kh�ng th? t?i d? li?u EMR."));
       } finally {
         setIsLoading(false);
         setIsRefreshing(false);
@@ -285,7 +285,7 @@ export default function MedicalRecordsPage() {
       setForm(mapDetailToForm(detail));
       setIsModalOpen(true);
     } catch (error: unknown) {
-      toast.error(getApiErrorMessage(error, "Khong the tai chi tiet encounter."));
+      toast.error(getApiErrorMessage(error, "Kh�ng th? t?i chi ti?t encounter."));
     }
   };
 
@@ -298,7 +298,7 @@ export default function MedicalRecordsPage() {
     }
 
     if (!form.diagnosisName.trim()) {
-      toast.error("Chan doan la truong bat buoc.");
+      toast.error("Ch?n do�n l� tru?ng b?t bu?c.");
       return;
     }
 
@@ -307,10 +307,10 @@ export default function MedicalRecordsPage() {
     try {
       if (editingEncounterId) {
         await hospitalEncounterService.update(editingEncounterId, buildUpdatePayload(form));
-        toast.success("Da cap nhat encounter.");
+        toast.success("�� c?p nh?t encounter.");
       } else {
         await hospitalEncounterService.create(buildPayload(form));
-        toast.success("Da tao encounter moi.");
+        toast.success("�� t?o encounter m?i.");
       }
 
       setIsModalOpen(false);
@@ -318,7 +318,7 @@ export default function MedicalRecordsPage() {
       setForm(EMPTY_FORM);
       await fetchData(true);
     } catch (error: unknown) {
-      toast.error(getApiErrorMessage(error, "Khong the luu ho so EMR."));
+      toast.error(getApiErrorMessage(error, "Kh�ng th? luu h? so EMR."));
     } finally {
       setIsSubmitting(false);
     }
@@ -333,10 +333,10 @@ export default function MedicalRecordsPage() {
               EMR service
             </p>
             <h1 className="mt-3 text-3xl font-bold text-slate-950">
-              Ho so kham benh hospital
+              H? so kh�m b?nh hospital
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">
-              Module nay da chuyen sang hospital database moi. Moi ho so duoc luu
+              Module nay da chuyen sang hospital database m?i. Moi ho so duoc luu
               theo mo hinh encounter, gom chan doan, ghi chu lam sang va dau hieu sinh ton.
             </p>
           </div>
@@ -376,7 +376,7 @@ export default function MedicalRecordsPage() {
             </select>
 
             <Button variant="secondary" onClick={() => void fetchData(true)} disabled={isRefreshing}>
-              {isRefreshing ? "Dang lam moi..." : "Lam moi"}
+              {isRefreshing ? "�ang l�m m?i..." : "Lam moi"}
             </Button>
             <Button onClick={openCreateModal}>Mo encounter</Button>
           </div>
@@ -384,8 +384,8 @@ export default function MedicalRecordsPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <MetricCard label="Dang kham" value={metrics.InProgress} tone="amber" />
-        <MetricCard label="Da chot ho so" value={metrics.Finalized} tone="emerald" />
+        <MetricCard label="�ang kh�m" value={metrics.InProgress} tone="amber" />
+        <MetricCard label="�� ch?t h? so" value={metrics.Finalized} tone="emerald" />
         <MetricCard label="Lich cho mo encounter" value={availableAppointments.length} tone="cyan" />
       </div>
 
@@ -415,7 +415,7 @@ export default function MedicalRecordsPage() {
         {isLoading ? (
           <div className="flex flex-col items-center justify-center p-16">
             <div className="mb-4 h-10 w-10 animate-spin rounded-full border-4 border-emerald-100 border-t-emerald-600" />
-            <p className="text-sm font-medium text-slate-500">Dang tai ho so EMR...</p>
+            <p className="text-sm font-medium text-slate-500">�ang t?i ho so EMR...</p>
           </div>
         ) : encounters.length === 0 ? (
           <div className="p-16 text-center text-sm text-slate-500">
@@ -427,9 +427,9 @@ export default function MedicalRecordsPage() {
               <thead>
                 <tr className="bg-slate-50">
                   <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Encounter</th>
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Benh nhan</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">B?nh nh�n</th>
                   <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Bac si</th>
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Chan doan</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Ch?n do�n</th>
                   <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Trang thai</th>
                   <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Cap nhat</th>
                   <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Tac vu</th>
@@ -543,7 +543,7 @@ export default function MedicalRecordsPage() {
           {!editingEncounterId && (
             <div>
               <label className="mb-2 block text-sm font-medium text-slate-700">
-                Lich hen da check-in / da hoan thanh
+                L?ch h?n da check-in / da hoan thanh
               </label>
               <select
                 value={form.appointmentId}
@@ -563,7 +563,7 @@ export default function MedicalRecordsPage() {
 
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Chan doan</label>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Ch?n do�n</label>
               <input
                 type="text"
                 value={form.diagnosisName}
@@ -610,8 +610,8 @@ export default function MedicalRecordsPage() {
                 }
                 className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
               >
-                <option value="InProgress">Dang kham</option>
-                <option value="Finalized">Da chot ho so</option>
+                <option value="InProgress">�ang kh�m</option>
+                <option value="Finalized">�� ch?t h? so</option>
               </select>
             </div>
           </div>
@@ -671,10 +671,10 @@ export default function MedicalRecordsPage() {
                 setForm(EMPTY_FORM);
               }}
             >
-              Dong
+              ��ng
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Dang luu..." : editingEncounterId ? "Cap nhat ho so" : "Tao ho so"}
+              {isSubmitting ? "�ang luu..." : editingEncounterId ? "C?p nh?t h? so" : "T?o h? so"}
             </Button>
           </div>
         </form>

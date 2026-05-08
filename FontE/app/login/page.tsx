@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { FormEvent, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
@@ -140,7 +140,7 @@ export default function LoginPage() {
             <div className="mt-8 animate-fade-in">
               <HeaderBlock
                 title="Cổng bệnh nhân"
-                description="Bệnh nhân có thể đăng nhập portal hoặc tạo tài khoản mới để theo dõi hồ sơ chăm sóc."
+                description="Bệnh nhân có thể đăng nhập portal hoặc tự tạo tài khoản mới để theo dõi hồ sơ chăm sóc."
               />
 
               <div className="mt-6 rounded-full bg-cyan-50 p-1">

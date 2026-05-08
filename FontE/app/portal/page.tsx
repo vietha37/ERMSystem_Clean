@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 import ProtectedLayout from "@/components/layout/ProtectedLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { authService } from "@/services/authService";
@@ -10,7 +11,6 @@ import {
   HospitalPatientPortalAppointment,
   HospitalPatientPortalOverview,
 } from "@/services/types";
-import toast from "react-hot-toast";
 
 function formatDate(value?: string | null): string {
   if (!value) {
@@ -41,13 +41,13 @@ function formatDateTime(value?: string | null): string {
 function getStatusLabel(status: string): string {
   switch (status) {
     case "Scheduled":
-      return "Da xep lich";
+      return "Đã xếp lịch";
     case "Completed":
-      return "Da hoan thanh";
+      return "Đã hoàn thành";
     case "Cancelled":
-      return "Da huy";
+      return "Đã hủy";
     case "Pending":
-      return "Dang cho";
+      return "Đang chờ";
     default:
       return status;
   }
@@ -56,13 +56,13 @@ function getStatusLabel(status: string): string {
 function getStatusStyle(status: string): string {
   switch (status) {
     case "Scheduled":
-      return "bg-cyan-50 text-cyan-700 border border-cyan-200";
+      return "border border-cyan-200 bg-cyan-50 text-cyan-700";
     case "Completed":
-      return "bg-emerald-50 text-emerald-700 border border-emerald-200";
+      return "border border-emerald-200 bg-emerald-50 text-emerald-700";
     case "Cancelled":
-      return "bg-rose-50 text-rose-700 border border-rose-200";
+      return "border border-rose-200 bg-rose-50 text-rose-700";
     default:
-      return "bg-slate-100 text-slate-700 border border-slate-200";
+      return "border border-slate-200 bg-slate-100 text-slate-700";
   }
 }
 
@@ -79,9 +79,7 @@ export default function PatientPortalPage() {
         const data = await hospitalPatientPortalService.getMyOverview();
         setOverview(data);
       } catch (error: unknown) {
-        toast.error(
-          getApiErrorMessage(error, "Khong the tai cong thong tin benh nhan.")
-        );
+        toast.error(getApiErrorMessage(error, "Không thể tải cổng thông tin bệnh nhân."));
       } finally {
         setIsLoading(false);
       }
@@ -108,51 +106,50 @@ export default function PatientPortalPage() {
             <div className="grid gap-8 px-8 py-8 lg:grid-cols-[1.2fr_0.8fr] lg:px-10 lg:py-10">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.3em] text-cyan-700">
-                  Cong thong tin benh nhan
+                  Cổng thông tin bệnh nhân
                 </p>
                 <h1 className="mt-4 text-4xl font-bold tracking-tight text-slate-950 md:text-5xl">
-                  Xin chao {profile?.fullName ?? authService.getUsername() ?? "ban"}.
+                  Xin chào {profile?.fullName ?? authService.getUsername() ?? "bạn"}.
                 </h1>
                 <p className="mt-4 max-w-2xl text-base leading-8 text-slate-600">
-                  Theo doi thong tin ho so va lich hen kham tai benh vien tu ngay tren
-                  mot giao dien rieng cho nguoi benh. Du lieu hien duoc doc truc tiep tu
-                  hospital database moi.
+                  Theo dõi thông tin hồ sơ và lịch hẹn khám tại bệnh viện tư ngay trên một giao diện riêng cho
+                  người bệnh. Dữ liệu hiện được đọc trực tiếp từ hospital database mới.
                 </p>
 
                 <div className="mt-8 grid gap-4 md:grid-cols-3">
-                  <StatCard label="Ma benh an" value={profile?.medicalRecordNumber ?? "--"} />
-                  <StatCard label="Lich sap toi" value={stats.totalUpcoming.toString()} />
+                  <StatCard label="Mã bệnh án" value={profile?.medicalRecordNumber ?? "--"} />
+                  <StatCard label="Lịch sắp tới" value={stats.totalUpcoming.toString()} />
                   <StatCard
-                    label="Lan kham tiep theo"
-                    value={stats.nextAppointment ? formatDateTime(stats.nextAppointment) : "Chua co"}
+                    label="Lần khám tiếp theo"
+                    value={stats.nextAppointment ? formatDateTime(stats.nextAppointment) : "Chưa có"}
                   />
                 </div>
               </div>
 
               <div className="rounded-[2rem] bg-slate-950 p-6 text-white shadow-[0_20px_55px_rgba(15,23,42,0.14)]">
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-200">
-                  Trang thai tai khoan
+                  Trạng thái tài khoản
                 </p>
                 <div className="mt-5 rounded-[1.5rem] border border-white/10 bg-white/5 p-5">
-                  <p className="text-sm text-slate-300">Trang thai portal</p>
+                  <p className="text-sm text-slate-300">Trạng thái portal</p>
                   <p className="mt-2 text-2xl font-bold text-white">
-                    {profile?.portalStatus ?? "Dang dong bo"}
+                    {profile?.portalStatus ?? "Đang đồng bộ"}
                   </p>
                   <p className="mt-3 text-sm leading-7 text-slate-300">
-                    Kich hoat tu: {profile?.activatedAtUtc ? formatDateTime(profile.activatedAtUtc) : "--"}
+                    Kích hoạt từ: {profile?.activatedAtUtc ? formatDateTime(profile.activatedAtUtc) : "--"}
                   </p>
                 </div>
 
                 <div className="mt-6 space-y-3 text-sm leading-7 text-slate-300">
-                  <p>Portal nay duoc tach rieng khoi dashboard van hanh noi bo.</p>
-                  <p>Buoc tiep theo se noi them don thuoc, ket qua xet nghiem va thanh toan.</p>
+                  <p>Portal này được tách riêng khỏi dashboard vận hành nội bộ.</p>
+                  <p>Bước tiếp theo sẽ nối thêm đơn thuốc, kết quả xét nghiệm và thanh toán.</p>
                 </div>
 
                 <button
                   onClick={() => void logout()}
                   className="mt-8 w-full rounded-full border border-cyan-300/40 px-5 py-3 text-sm font-semibold text-cyan-100 transition hover:border-cyan-200 hover:bg-white/10"
                 >
-                  Dang xuat
+                  Đăng xuất
                 </button>
               </div>
             </div>
@@ -163,15 +160,13 @@ export default function PatientPortalPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-700">
-                    Ho so cua toi
+                    Hồ sơ của tôi
                   </p>
-                  <h2 className="mt-2 text-2xl font-bold text-slate-900">
-                    Thong tin co ban
-                  </h2>
+                  <h2 className="mt-2 text-2xl font-bold text-slate-900">Thông tin cơ bản</h2>
                 </div>
                 {isLoading && (
                   <div className="rounded-full bg-cyan-50 px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-cyan-700">
-                    Dang tai
+                    Đang tải
                   </div>
                 )}
               </div>
@@ -187,33 +182,33 @@ export default function PatientPortalPage() {
                 </div>
               ) : profile ? (
                 <div className="mt-6 grid gap-4 md:grid-cols-2">
-                  <InfoCard label="Ho va ten" value={profile.fullName} />
-                  <InfoCard label="Ngay sinh" value={formatDate(profile.dateOfBirth)} />
-                  <InfoCard label="Gioi tinh" value={profile.gender} />
-                  <InfoCard label="So dien thoai" value={profile.phone ?? "--"} />
+                  <InfoCard label="Họ và tên" value={profile.fullName} />
+                  <InfoCard label="Ngày sinh" value={formatDate(profile.dateOfBirth)} />
+                  <InfoCard label="Giới tính" value={profile.gender} />
+                  <InfoCard label="Số điện thoại" value={profile.phone ?? "--"} />
                   <InfoCard label="Email" value={profile.email ?? "--"} />
-                  <InfoCard label="Dia chi" value={profile.address ?? "--"} className="md:col-span-2" />
+                  <InfoCard label="Địa chỉ" value={profile.address ?? "--"} className="md:col-span-2" />
                 </div>
               ) : (
                 <div className="mt-6 rounded-[1.5rem] border border-rose-200 bg-rose-50 p-5 text-sm text-rose-700">
-                  Khong tim thay ho so hospital portal cua tai khoan nay.
+                  Không tìm thấy hồ sơ hospital portal của tài khoản này.
                 </div>
               )}
             </section>
 
             <section className="space-y-6">
               <AppointmentPanel
-                title="Lich hen sap toi"
-                description="Cac lich hen se dien ra trong nhung ngay tiep theo."
+                title="Lịch hẹn sắp tới"
+                description="Các lịch hẹn sẽ diễn ra trong những ngày tiếp theo."
                 appointments={upcomingAppointments}
-                emptyMessage="Ban chua co lich hen sap toi."
+                emptyMessage="Bạn chưa có lịch hẹn sắp tới."
               />
 
               <AppointmentPanel
-                title="Lich su gan day"
-                description="Tong hop nhung lan kham gan nhat cua ban."
+                title="Lịch sử gần đây"
+                description="Tổng hợp những lần khám gần nhất của bạn."
                 appointments={recentAppointments}
-                emptyMessage="Chua co lich su kham nao trong portal."
+                emptyMessage="Chưa có lịch sử khám nào trong portal."
               />
             </section>
           </div>
@@ -226,9 +221,7 @@ export default function PatientPortalPage() {
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-[1.6rem] border border-cyan-100 bg-cyan-50/70 px-5 py-4">
-      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-700">
-        {label}
-      </p>
+      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-700">{label}</p>
       <p className="mt-3 text-lg font-bold text-slate-950">{value}</p>
     </div>
   );
@@ -245,9 +238,7 @@ function InfoCard({
 }) {
   return (
     <div className={`rounded-[1.4rem] border border-slate-100 bg-slate-50 px-4 py-4 ${className}`.trim()}>
-      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-        {label}
-      </p>
+      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">{label}</p>
       <p className="mt-2 text-sm font-medium leading-7 text-slate-800">{value}</p>
     </div>
   );
@@ -266,9 +257,7 @@ function AppointmentPanel({
 }) {
   return (
     <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-700">
-        {title}
-      </p>
+      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-700">{title}</p>
       <p className="mt-2 text-sm leading-7 text-slate-500">{description}</p>
 
       {appointments.length === 0 ? (
@@ -287,9 +276,7 @@ function AppointmentPanel({
                   <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
                     {appointment.appointmentNumber}
                   </p>
-                  <h3 className="mt-2 text-lg font-bold text-slate-900">
-                    {appointment.doctorName}
-                  </h3>
+                  <h3 className="mt-2 text-lg font-bold text-slate-900">{appointment.doctorName}</h3>
                   <p className="mt-1 text-sm text-slate-600">
                     {appointment.specialtyName} / {appointment.clinicName}
                   </p>
@@ -303,10 +290,10 @@ function AppointmentPanel({
               </div>
 
               <div className="mt-4 grid gap-3 md:grid-cols-2">
-                <MiniInfo label="Thoi gian" value={formatDateTime(appointment.appointmentStartLocal)} />
-                <MiniInfo label="Kenh dat lich" value={appointment.bookingChannel} />
-                <MiniInfo label="Loai lich hen" value={appointment.appointmentType} />
-                <MiniInfo label="Ly do kham" value={appointment.chiefComplaint ?? "--"} />
+                <MiniInfo label="Thời gian" value={formatDateTime(appointment.appointmentStartLocal)} />
+                <MiniInfo label="Kênh đặt lịch" value={appointment.bookingChannel} />
+                <MiniInfo label="Loại lịch hẹn" value={appointment.appointmentType} />
+                <MiniInfo label="Lý do khám" value={appointment.chiefComplaint ?? "--"} />
               </div>
             </article>
           ))}
@@ -319,9 +306,7 @@ function AppointmentPanel({
 function MiniInfo({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-[1.2rem] border border-white bg-white px-4 py-3 shadow-sm">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
-        {label}
-      </p>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">{label}</p>
       <p className="mt-2 text-sm font-medium text-slate-700">{value}</p>
     </div>
   );

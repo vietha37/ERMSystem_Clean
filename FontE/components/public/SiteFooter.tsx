@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { footerLinks } from "@/content/hospitalContent";
 
 export function SiteFooter() {

@@ -19,11 +19,13 @@ public interface IHospitalEncounterService
     Task<HospitalEncounterDetailDto> CreateAsync(
         CreateHospitalEncounterDto request,
         Guid? actorUserId,
+        string? actorUsername,
         CancellationToken ct = default);
 
     Task<HospitalEncounterDetailDto?> UpdateAsync(
         Guid encounterId,
         UpdateHospitalEncounterDto request,
         Guid? actorUserId,
+        string? actorUsername,
         CancellationToken ct = default);
 }

@@ -22,9 +22,9 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
       }
 
       const allowedRoutesByRole: Record<UserRole, string[]> = {
-        Admin: ['/dashboard', '/doctor-worklist', '/staff', '/patients', '/appointments', '/medical-records', '/prescriptions', '/notifications'],
-        Doctor: ['/dashboard', '/doctor-worklist', '/patients', '/appointments', '/medical-records', '/prescriptions'],
-        Receptionist: ['/dashboard', '/doctor-worklist', '/patients', '/appointments', '/notifications'],
+        Admin: ['/dashboard', '/doctor-worklist', '/staff', '/patients', '/appointments', '/medical-records', '/prescriptions', '/clinical-orders', '/billing', '/notifications'],
+        Doctor: ['/dashboard', '/doctor-worklist', '/patients', '/appointments', '/medical-records', '/prescriptions', '/clinical-orders'],
+        Receptionist: ['/dashboard', '/doctor-worklist', '/patients', '/appointments', '/clinical-orders', '/billing', '/notifications'],
         Patient: ['/portal'],
       };
 
@@ -49,7 +49,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
       <div className="min-h-screen flex items-center justify-center bg-blue-50/50">
         <div className="flex flex-col items-center">
           <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-          <p className="mt-4 text-gray-500 font-medium tracking-wide">Dang xac thuc phien dang nhap...</p>
+          <p className="mt-4 text-gray-500 font-medium tracking-wide">Đang xác thực phiên đăng nhập...</p>
         </div>
       </div>
     );

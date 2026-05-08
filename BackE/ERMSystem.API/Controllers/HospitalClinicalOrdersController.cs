@@ -7,47 +7,47 @@ using Microsoft.AspNetCore.Mvc;
 namespace ERMSystem.API.Controllers;
 
 [ApiController]
-[Route("api/hospital-prescriptions")]
+[Route("api/hospital-clinical-orders")]
 [Authorize(Roles = "Admin,Doctor,Receptionist")]
-public class HospitalPrescriptionsController : ControllerBase
+public class HospitalClinicalOrdersController : ControllerBase
 {
-    private readonly IHospitalPrescriptionService _hospitalPrescriptionService;
+    private readonly IHospitalClinicalOrderService _hospitalClinicalOrderService;
 
-    public HospitalPrescriptionsController(IHospitalPrescriptionService hospitalPrescriptionService)
+    public HospitalClinicalOrdersController(IHospitalClinicalOrderService hospitalClinicalOrderService)
     {
-        _hospitalPrescriptionService = hospitalPrescriptionService;
+        _hospitalClinicalOrderService = hospitalClinicalOrderService;
     }
 
     [HttpGet]
     public async Task<IActionResult> GetWorklist(
-        [FromQuery] HospitalPrescriptionWorklistRequestDto request,
+        [FromQuery] HospitalClinicalOrderWorklistRequestDto request,
         CancellationToken ct)
     {
-        var result = await _hospitalPrescriptionService.GetWorklistAsync(request, ct);
+        var result = await _hospitalClinicalOrderService.GetWorklistAsync(request, ct);
         return Ok(result);
     }
 
     [HttpGet("eligible-encounters")]
     public async Task<IActionResult> GetEligibleEncounters(CancellationToken ct)
     {
-        var result = await _hospitalPrescriptionService.GetEligibleEncountersAsync(ct);
+        var result = await _hospitalClinicalOrderService.GetEligibleEncountersAsync(ct);
         return Ok(result);
     }
 
-    [HttpGet("medicine-catalog")]
-    public async Task<IActionResult> GetMedicineCatalog(CancellationToken ct)
+    [HttpGet("catalog")]
+    public async Task<IActionResult> GetCatalog(CancellationToken ct)
     {
-        var result = await _hospitalPrescriptionService.GetMedicineCatalogAsync(ct);
+        var result = await _hospitalClinicalOrderService.GetCatalogAsync(ct);
         return Ok(result);
     }
 
-    [HttpGet("{prescriptionId:guid}")]
-    public async Task<IActionResult> GetById(Guid prescriptionId, CancellationToken ct)
+    [HttpGet("{clinicalOrderId:guid}")]
+    public async Task<IActionResult> GetById(Guid clinicalOrderId, CancellationToken ct)
     {
-        var result = await _hospitalPrescriptionService.GetByIdAsync(prescriptionId, ct);
+        var result = await _hospitalClinicalOrderService.GetByIdAsync(clinicalOrderId, ct);
         if (result == null)
         {
-            return NotFound(new { message = "Khong tim thay don thuoc." });
+            return NotFound(new { message = "Khong tim thay chi dinh can lam sang." });
         }
 
         return Ok(result);
@@ -55,7 +55,7 @@ public class HospitalPrescriptionsController : ControllerBase
 
     [HttpPost]
     public async Task<IActionResult> Create(
-        [FromBody] CreateHospitalPrescriptionDto request,
+        [FromBody] CreateHospitalClinicalOrderDto request,
         CancellationToken ct)
     {
         if (!ModelState.IsValid)
@@ -65,12 +65,12 @@ public class HospitalPrescriptionsController : ControllerBase
 
         try
         {
-            var result = await _hospitalPrescriptionService.CreateAsync(
+            var result = await _hospitalClinicalOrderService.CreateAsync(
                 request,
                 ResolveActorUserId(),
                 ResolveActorUsername(),
                 ct);
-            return CreatedAtAction(nameof(GetById), new { prescriptionId = result.PrescriptionId }, result);
+            return CreatedAtAction(nameof(GetById), new { clinicalOrderId = result.ClinicalOrderId }, result);
         }
         catch (KeyNotFoundException ex)
         {
@@ -82,30 +82,10 @@ public class HospitalPrescriptionsController : ControllerBase
         }
     }
 
-    [HttpDelete("{prescriptionId:guid}")]
-    [Authorize(Roles = "Admin,Receptionist")]
-    public async Task<IActionResult> Delete(Guid prescriptionId, CancellationToken ct)
-    {
-        try
-        {
-            await _hospitalPrescriptionService.DeleteAsync(prescriptionId, ct);
-            return NoContent();
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-    }
-
-    [HttpPost("{prescriptionId:guid}/dispense")]
-    [Authorize(Roles = "Admin,Receptionist")]
-    public async Task<IActionResult> Dispense(
-        Guid prescriptionId,
-        [FromBody] DispenseHospitalPrescriptionDto request,
+    [HttpPost("{clinicalOrderId:guid}/lab-result")]
+    public async Task<IActionResult> RecordLabResult(
+        Guid clinicalOrderId,
+        [FromBody] RecordHospitalLabResultDto request,
         CancellationToken ct)
     {
         if (!ModelState.IsValid)
@@ -115,8 +95,8 @@ public class HospitalPrescriptionsController : ControllerBase
 
         try
         {
-            var result = await _hospitalPrescriptionService.DispenseAsync(
-                prescriptionId,
+            var result = await _hospitalClinicalOrderService.RecordLabResultAsync(
+                clinicalOrderId,
                 request,
                 ResolveActorUserId(),
                 ResolveActorUsername(),
@@ -124,7 +104,40 @@ public class HospitalPrescriptionsController : ControllerBase
 
             if (result == null)
             {
-                return NotFound(new { message = "Khong tim thay don thuoc." });
+                return NotFound(new { message = "Khong tim thay chi dinh xet nghiem." });
+            }
+
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("{clinicalOrderId:guid}/imaging-report")]
+    public async Task<IActionResult> RecordImagingReport(
+        Guid clinicalOrderId,
+        [FromBody] RecordHospitalImagingReportDto request,
+        CancellationToken ct)
+    {
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        try
+        {
+            var result = await _hospitalClinicalOrderService.RecordImagingReportAsync(
+                clinicalOrderId,
+                request,
+                ResolveActorUserId(),
+                ResolveActorUsername(),
+                ct);
+
+            if (result == null)
+            {
+                return NotFound(new { message = "Khong tim thay chi dinh chan doan hinh anh." });
             }
 
             return Ok(result);

@@ -20,17 +20,20 @@ namespace ERMSystem.Infrastructure.Services
     {
         private readonly IUserRepository _userRepository;
         private readonly IPatientRepository _patientRepository;
+        private readonly IHospitalIdentityBridgeService _hospitalIdentityBridgeService;
         private readonly HospitalDbContext _hospitalDbContext;
         private readonly IConfiguration _configuration;
 
         public AuthService(
             IUserRepository userRepository,
             IPatientRepository patientRepository,
+            IHospitalIdentityBridgeService hospitalIdentityBridgeService,
             HospitalDbContext hospitalDbContext,
             IConfiguration configuration)
         {
             _userRepository = userRepository;
             _patientRepository = patientRepository;
+            _hospitalIdentityBridgeService = hospitalIdentityBridgeService;
             _hospitalDbContext = hospitalDbContext;
             _configuration = configuration;
         }
@@ -53,6 +56,15 @@ namespace ERMSystem.Infrastructure.Services
             };
 
             await _userRepository.AddAsync(user);
+            try
+            {
+                await _hospitalIdentityBridgeService.SyncInternalUserAsync(user);
+            }
+            catch
+            {
+                await _userRepository.DeleteAsync(user);
+                throw;
+            }
 
             return await BuildAuthResponseAsync(user);
         }
@@ -114,6 +126,10 @@ namespace ERMSystem.Infrastructure.Services
                     throw new UnauthorizedAccessException("Patient profile not found.");
 
                 await EnsureHospitalPatientProjectionAsync(user, patient);
+            }
+            else if (Array.Exists(AppRole.Internal, role => role == user.Role))
+            {
+                await _hospitalIdentityBridgeService.SyncInternalUserAsync(user);
             }
 
             return await BuildAuthResponseAsync(user);

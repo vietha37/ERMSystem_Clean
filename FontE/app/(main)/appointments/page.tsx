@@ -1,6 +1,7 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import toast from "react-hot-toast";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
@@ -11,29 +12,28 @@ import {
   HospitalAppointmentWorklistItem,
   HospitalAppointmentWorklistStatus,
 } from "@/services/types";
-import toast from "react-hot-toast";
 
 const STATUS_OPTIONS: Array<{
   value: HospitalAppointmentWorklistStatus | "All";
   label: string;
 }> = [
-  { value: "All", label: "Tat ca" },
-  { value: "Scheduled", label: "Da xep lich" },
-  { value: "CheckedIn", label: "Da check-in" },
-  { value: "Completed", label: "Da hoan thanh" },
-  { value: "Cancelled", label: "Da huy" },
+  { value: "All", label: "Tất cả" },
+  { value: "Scheduled", label: "Đã xếp lịch" },
+  { value: "CheckedIn", label: "Đã check-in" },
+  { value: "Completed", label: "Đã hoàn thành" },
+  { value: "Cancelled", label: "Đã hủy" },
 ];
 
 function getStatusLabel(status: HospitalAppointmentWorklistStatus): string {
   switch (status) {
     case "Scheduled":
-      return "Da xep lich";
+      return "Đã xếp lịch";
     case "CheckedIn":
-      return "Da check-in";
+      return "Đã check-in";
     case "Completed":
-      return "Da hoan thanh";
+      return "Đã hoàn thành";
     case "Cancelled":
-      return "Da huy";
+      return "Đã hủy";
     default:
       return status;
   }
@@ -42,15 +42,15 @@ function getStatusLabel(status: HospitalAppointmentWorklistStatus): string {
 function getStatusStyle(status: HospitalAppointmentWorklistStatus): string {
   switch (status) {
     case "Scheduled":
-      return "bg-cyan-50 text-cyan-700 border border-cyan-200";
+      return "border border-cyan-200 bg-cyan-50 text-cyan-700";
     case "CheckedIn":
-      return "bg-amber-50 text-amber-700 border border-amber-200";
+      return "border border-amber-200 bg-amber-50 text-amber-700";
     case "Completed":
-      return "bg-emerald-50 text-emerald-700 border border-emerald-200";
+      return "border border-emerald-200 bg-emerald-50 text-emerald-700";
     case "Cancelled":
-      return "bg-rose-50 text-rose-700 border border-rose-200";
+      return "border border-rose-200 bg-rose-50 text-rose-700";
     default:
-      return "bg-slate-100 text-slate-700 border border-slate-200";
+      return "border border-slate-200 bg-slate-100 text-slate-700";
   }
 }
 
@@ -115,7 +115,7 @@ export default function AppointmentsPage() {
         setAppointments(data.items);
         setTotalCount(data.totalCount);
       } catch (error: unknown) {
-        toast.error(getApiErrorMessage(error, "Khong the tai danh sach lich hen."));
+        toast.error(getApiErrorMessage(error, "Không thể tải danh sách lịch hẹn."));
       } finally {
         setIsLoading(false);
         setIsRefreshing(false);
@@ -162,13 +162,13 @@ export default function AppointmentsPage() {
         counterLabel: counterLabel.trim() || undefined,
       });
 
-      toast.success("Da check-in benh nhan va cap so thu tu.");
+      toast.success("Đã check-in bệnh nhân và cấp số thứ tự.");
       setIsCheckInModalOpen(false);
       setSelectedAppointment(null);
       setCounterLabel("");
       await fetchAppointments(true);
     } catch (error: unknown) {
-      toast.error(getApiErrorMessage(error, "Khong the check-in lich hen."));
+      toast.error(getApiErrorMessage(error, "Không thể check-in lịch hẹn."));
     } finally {
       setActionId(null);
     }
@@ -182,10 +182,10 @@ export default function AppointmentsPage() {
 
     try {
       await hospitalAppointmentWorklistService.updateStatus(appointment.appointmentId, status);
-      toast.success(`Da cap nhat trang thai sang ${getStatusLabel(status)}.`);
+      toast.success(`Đã cập nhật trạng thái sang ${getStatusLabel(status)}.`);
       await fetchAppointments(true);
     } catch (error: unknown) {
-      toast.error(getApiErrorMessage(error, "Khong the cap nhat trang thai lich hen."));
+      toast.error(getApiErrorMessage(error, "Không thể cập nhật trạng thái lịch hẹn."));
     } finally {
       setActionId(null);
     }
@@ -204,11 +204,11 @@ export default function AppointmentsPage() {
               Appointment service
             </p>
             <h1 className="mt-3 text-3xl font-bold text-slate-950">
-              Dieu phoi lich hen noi bo
+              Điều phối lịch hẹn nội bộ
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">
-              Worklist nay doc truc tiep tu hospital database moi de le tan va bac si
-              theo doi luong tiep nhan, check-in va xu ly lich hen trong ngay.
+              Worklist này đọc trực tiếp từ hospital database mới để lễ tân và bác sĩ
+              theo dõi luồng tiếp nhận, check-in và xử lý lịch hẹn trong ngày.
             </p>
           </div>
 
@@ -217,7 +217,7 @@ export default function AppointmentsPage() {
               type="text"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Tim theo ma lich, benh nhan, bac si..."
+              placeholder="Tìm theo mã lịch, bệnh nhân, bác sĩ..."
               className="min-w-[260px] rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
             />
 
@@ -247,25 +247,25 @@ export default function AppointmentsPage() {
             </select>
 
             <Button onClick={() => void fetchAppointments(true)} disabled={isRefreshing}>
-              {isRefreshing ? "Dang lam moi..." : "Lam moi"}
+              {isRefreshing ? "Đang làm mới..." : "Làm mới"}
             </Button>
           </div>
         </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Da xep lich" value={metrics.Scheduled} tone="cyan" />
-        <MetricCard label="Da check-in" value={metrics.CheckedIn} tone="amber" />
-        <MetricCard label="Da hoan thanh" value={metrics.Completed} tone="emerald" />
-        <MetricCard label="Da huy" value={metrics.Cancelled} tone="rose" />
+        <MetricCard label="Đã xếp lịch" value={metrics.Scheduled} tone="cyan" />
+        <MetricCard label="Đã check-in" value={metrics.CheckedIn} tone="amber" />
+        <MetricCard label="Đã hoàn thành" value={metrics.Completed} tone="emerald" />
+        <MetricCard label="Đã hủy" value={metrics.Cancelled} tone="rose" />
       </div>
 
       <Card className="overflow-hidden border border-slate-100 p-0 shadow-sm">
         <div className="flex flex-col gap-3 border-b border-slate-100 px-6 py-5 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Worklist lich hen</h2>
+            <h2 className="text-lg font-bold text-slate-900">Worklist lịch hẹn</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Hien thi {startItem}-{endItem} / {totalCount} lich hen.
+              Hiển thị {startItem}-{endItem} / {totalCount} lịch hẹn.
             </p>
           </div>
 
@@ -277,33 +277,33 @@ export default function AppointmentsPage() {
             }}
             className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
           >
-            <option value={10}>10 dong / trang</option>
-            <option value={20}>20 dong / trang</option>
-            <option value={50}>50 dong / trang</option>
+            <option value={10}>10 dòng / trang</option>
+            <option value={20}>20 dòng / trang</option>
+            <option value={50}>50 dòng / trang</option>
           </select>
         </div>
 
         {isLoading ? (
           <div className="flex flex-col items-center justify-center p-16">
             <div className="mb-4 h-10 w-10 animate-spin rounded-full border-4 border-cyan-100 border-t-cyan-600" />
-            <p className="text-sm font-medium text-slate-500">Dang tai worklist lich hen...</p>
+            <p className="text-sm font-medium text-slate-500">Đang tải worklist lịch hẹn...</p>
           </div>
         ) : appointments.length === 0 ? (
           <div className="p-16 text-center text-sm text-slate-500">
-            Khong co lich hen nao khop bo loc hien tai.
+            Không có lịch hẹn nào khớp bộ lọc hiện tại.
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-[1320px] w-full border-collapse text-left">
               <thead>
                 <tr className="bg-slate-50">
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Lich hen</th>
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Benh nhan</th>
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Bac si</th>
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Thoi gian</th>
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Trang thai</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Lịch hẹn</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Bệnh nhân</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Bác sĩ</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Thời gian</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Trạng thái</th>
                   <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Check-in</th>
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Tac vu</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Tác vụ</th>
                 </tr>
               </thead>
               <tbody>
@@ -318,7 +318,7 @@ export default function AppointmentsPage() {
                         {appointment.appointmentType} / {appointment.bookingChannel}
                       </div>
                       <div className="mt-1 text-xs text-slate-400">
-                        {appointment.chiefComplaint || "Khong co ly do kham"}
+                        {appointment.chiefComplaint || "Không có lý do khám"}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -344,7 +344,7 @@ export default function AppointmentsPage() {
                     <td className="px-6 py-4 text-sm text-slate-600">
                       <div>{formatDateTime(appointment.appointmentStartLocal)}</div>
                       <div className="mt-1 text-xs text-slate-400">
-                        Ket thuc: {formatDateTime(appointment.appointmentEndLocal)}
+                        Kết thúc: {formatDateTime(appointment.appointmentEndLocal)}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -355,12 +355,12 @@ export default function AppointmentsPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-600">
-                      <div>Quay: {appointment.counterLabel || "--"}</div>
-                      <div className="mt-1">So thu tu: {appointment.queueNumber || "--"}</div>
+                      <div>Quầy: {appointment.counterLabel || "--"}</div>
+                      <div className="mt-1">Số thứ tự: {appointment.queueNumber || "--"}</div>
                       <div className="mt-1 text-xs text-slate-400">
                         {appointment.checkInTimeLocal
-                          ? `Luc ${formatDateTime(appointment.checkInTimeLocal)}`
-                          : "Chua check-in"}
+                          ? `Lúc ${formatDateTime(appointment.checkInTimeLocal)}`
+                          : "Chưa check-in"}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -383,7 +383,7 @@ export default function AppointmentsPage() {
                             disabled={actionId === appointment.appointmentId}
                             className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
                           >
-                            Hoan thanh
+                            Hoàn thành
                           </Button>
                         )}
 
@@ -394,7 +394,7 @@ export default function AppointmentsPage() {
                             disabled={actionId === appointment.appointmentId}
                             className="border-rose-200 text-rose-700 hover:bg-rose-50"
                           >
-                            Huy lich
+                            Hủy lịch
                           </Button>
                         )}
                       </div>
@@ -413,14 +413,14 @@ export default function AppointmentsPage() {
 
           <div className="flex items-center gap-2">
             <Button variant="secondary" onClick={() => setPageNumber(1)} disabled={pageNumber === 1}>
-              Dau
+              Đầu
             </Button>
             <Button
               variant="secondary"
               onClick={() => setPageNumber((current) => current - 1)}
               disabled={pageNumber === 1}
             >
-              Truoc
+              Trước
             </Button>
             <Button
               variant="secondary"
@@ -440,7 +440,7 @@ export default function AppointmentsPage() {
           setSelectedAppointment(null);
           setCounterLabel("");
         }}
-        title="Check-in benh nhan"
+        title="Check-in bệnh nhân"
       >
         <form onSubmit={handleCheckIn} className="space-y-5">
           <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
@@ -454,13 +454,13 @@ export default function AppointmentsPage() {
 
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-700">
-              Quay tiep nhan
+              Quầy tiếp nhận
             </label>
             <input
               type="text"
               value={counterLabel}
               onChange={(event) => setCounterLabel(event.target.value)}
-              placeholder="Vi du: Quay 1"
+              placeholder="Ví dụ: Quầy 1"
               className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
             />
           </div>
@@ -475,10 +475,10 @@ export default function AppointmentsPage() {
                 setCounterLabel("");
               }}
             >
-              Dong
+              Đóng
             </Button>
             <Button type="submit" disabled={!selectedAppointment || actionId === selectedAppointment.appointmentId}>
-              {actionId === selectedAppointment?.appointmentId ? "Dang xu ly..." : "Xac nhan check-in"}
+              {actionId === selectedAppointment?.appointmentId ? "Đang xử lý..." : "Xác nhận check-in"}
             </Button>
           </div>
         </form>

@@ -91,6 +91,14 @@ namespace ERMSystem.Infrastructure.Repositories
             await _context.SaveChangesAsync(ct);
         }
 
+        public async Task<IReadOnlyList<AppUser>> GetInternalUsersAsync(CancellationToken ct = default)
+        {
+            return await _context.AppUsers
+                .Where(u => u.Role == AppRole.Admin || u.Role == AppRole.Doctor || u.Role == AppRole.Receptionist)
+                .OrderBy(u => u.Username)
+                .ToListAsync(ct);
+        }
+
         public async Task DeleteAsync(AppUser user, CancellationToken ct = default)
         {
             _context.AppUsers.Remove(user);

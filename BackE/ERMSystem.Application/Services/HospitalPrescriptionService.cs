@@ -13,10 +13,14 @@ public class HospitalPrescriptionService : IHospitalPrescriptionService
     private static readonly string[] AllowedStatuses = ["Issued", "Dispensed", "Cancelled"];
 
     private readonly IHospitalPrescriptionRepository _hospitalPrescriptionRepository;
+    private readonly IHospitalIdentityBridgeService _hospitalIdentityBridgeService;
 
-    public HospitalPrescriptionService(IHospitalPrescriptionRepository hospitalPrescriptionRepository)
+    public HospitalPrescriptionService(
+        IHospitalPrescriptionRepository hospitalPrescriptionRepository,
+        IHospitalIdentityBridgeService hospitalIdentityBridgeService)
     {
         _hospitalPrescriptionRepository = hospitalPrescriptionRepository;
+        _hospitalIdentityBridgeService = hospitalIdentityBridgeService;
     }
 
     public Task<PaginatedResult<HospitalPrescriptionSummaryDto>> GetWorklistAsync(
@@ -39,9 +43,10 @@ public class HospitalPrescriptionService : IHospitalPrescriptionService
     public async Task<HospitalPrescriptionDetailDto> CreateAsync(
         CreateHospitalPrescriptionDto request,
         Guid? actorUserId,
+        string? actorUsername,
         CancellationToken ct = default)
     {
-        actorUserId = await ResolveHospitalActorUserIdAsync(actorUserId, ct);
+        actorUserId = await ResolveHospitalActorUserIdAsync(actorUserId, actorUsername, ct);
         if (request.Items == null || request.Items.Count == 0)
         {
             throw new InvalidOperationException("Don thuoc phai co it nhat mot thuoc.");
@@ -161,23 +166,84 @@ public class HospitalPrescriptionService : IHospitalPrescriptionService
         return MapDetail(created);
     }
 
+    public async Task<HospitalPrescriptionDetailDto?> DispenseAsync(
+        Guid prescriptionId,
+        DispenseHospitalPrescriptionDto request,
+        Guid? actorUserId,
+        string? actorUsername,
+        CancellationToken ct = default)
+    {
+        actorUserId = await ResolveHospitalActorUserIdAsync(actorUserId, actorUsername, ct);
+        var prescription = await _hospitalPrescriptionRepository.GetByIdAsync(prescriptionId, ct);
+        if (prescription == null)
+        {
+            return null;
+        }
+
+        if (prescription.Status == "Cancelled")
+        {
+            throw new InvalidOperationException("Don thuoc da huy khong the cap thuoc.");
+        }
+
+        if (prescription.Status == "Dispensed")
+        {
+            throw new InvalidOperationException("Don thuoc nay da duoc cap thuoc.");
+        }
+
+        var nowUtc = DateTime.UtcNow;
+        await _hospitalPrescriptionRepository.AddDispensingAsync(new HospitalPrescriptionDispensingCreateCommand
+        {
+            DispensingId = Guid.NewGuid(),
+            PrescriptionId = prescriptionId,
+            DispensingStatus = "Dispensed",
+            DispensedAtUtc = nowUtc,
+            DispensedByUserId = actorUserId,
+            Notes = NormalizeText(request.Notes)
+        }, ct);
+
+        await _hospitalPrescriptionRepository.UpdatePrescriptionStatusAsync(prescriptionId, "Dispensed", ct);
+        await _hospitalPrescriptionRepository.UpdateOrderHeaderStatusAsync(prescription.OrderHeaderId, "Completed", ct);
+        await _hospitalPrescriptionRepository.AddOutboxMessageAsync(new HospitalPrescriptionOutboxCreateCommand
+        {
+            OutboxMessageId = Guid.NewGuid(),
+            AggregateType = "Prescription",
+            AggregateId = prescriptionId,
+            EventType = "PrescriptionDispensed.v1",
+            PayloadJson = JsonSerializer.Serialize(new
+            {
+                prescriptionId,
+                prescription.PrescriptionNumber,
+                prescription.EncounterId,
+                prescription.EncounterNumber,
+                prescription.PatientId,
+                prescription.PatientName,
+                prescription.MedicalRecordNumber,
+                prescription.DoctorProfileId,
+                prescription.DoctorName,
+                dispensedAtUtc = nowUtc,
+                dispensedByUserId = actorUserId,
+                notes = NormalizeText(request.Notes)
+            }, JsonOptions),
+            Status = "Pending",
+            AvailableAtUtc = nowUtc
+        }, ct);
+
+        await _hospitalPrescriptionRepository.SaveChangesAsync(ct);
+
+        var updated = await _hospitalPrescriptionRepository.GetByIdAsync(prescriptionId, ct)
+            ?? throw new InvalidOperationException("Khong the tai lai don thuoc sau khi cap thuoc.");
+
+        return MapDetail(updated);
+    }
+
     public async Task DeleteAsync(Guid prescriptionId, CancellationToken ct = default)
     {
         await _hospitalPrescriptionRepository.DeletePrescriptionAsync(prescriptionId, ct);
         await _hospitalPrescriptionRepository.SaveChangesAsync(ct);
     }
 
-    private async Task<Guid?> ResolveHospitalActorUserIdAsync(Guid? actorUserId, CancellationToken ct)
-    {
-        if (!actorUserId.HasValue)
-        {
-            return null;
-        }
-
-        return await _hospitalPrescriptionRepository.HospitalUserExistsAsync(actorUserId.Value, ct)
-            ? actorUserId
-            : null;
-    }
+    private Task<Guid?> ResolveHospitalActorUserIdAsync(Guid? actorUserId, string? actorUsername, CancellationToken ct)
+        => _hospitalIdentityBridgeService.ResolveHospitalUserIdAsync(actorUserId, actorUsername, ct);
 
     private static HospitalPrescriptionDetailDto MapDetail(HospitalPrescriptionAggregateSnapshot prescription)
     {
@@ -186,6 +252,8 @@ public class HospitalPrescriptionService : IHospitalPrescriptionService
             PrescriptionId = prescription.PrescriptionId,
             PrescriptionNumber = prescription.PrescriptionNumber,
             Status = prescription.Status,
+            LatestDispensingId = prescription.LatestDispensingId,
+            LatestDispensingStatus = prescription.LatestDispensingStatus,
             EncounterId = prescription.EncounterId,
             EncounterNumber = prescription.EncounterNumber,
             PatientId = prescription.PatientId,
@@ -198,6 +266,11 @@ public class HospitalPrescriptionService : IHospitalPrescriptionService
             PrimaryDiagnosisName = prescription.PrimaryDiagnosisName,
             TotalItems = prescription.Items.Length,
             CreatedAtLocal = ConvertUtcToClinicLocal(prescription.CreatedAtUtc),
+            DispensedAtLocal = prescription.DispensedAtUtc.HasValue
+                ? ConvertUtcToClinicLocal(prescription.DispensedAtUtc.Value)
+                : null,
+            DispensedByUsername = prescription.DispensedByUsername,
+            DispensingNotes = prescription.DispensingNotes,
             Notes = prescription.Notes,
             Items = prescription.Items.Select(item => new HospitalPrescriptionItemDto
             {

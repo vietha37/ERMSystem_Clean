@@ -1,4 +1,4 @@
-import { PublicPageShell } from "@/components/public/PublicPageShell";
+﻿import { PublicPageShell } from "@/components/public/PublicPageShell";
 import { SectionHeading } from "@/components/public/SectionHeading";
 import { doctors } from "@/content/hospitalContent";
 import { hospitalDoctorService } from "@/services/hospitalDoctorService";
@@ -18,21 +18,21 @@ function formatCurrency(amount?: number | null) {
 function formatDayOfWeek(dayOfWeek: number) {
   switch (dayOfWeek) {
     case 1:
-      return "Thu 2";
+      return "Thứ 2";
     case 2:
-      return "Thu 3";
+      return "Thứ 3";
     case 3:
-      return "Thu 4";
+      return "Thứ 4";
     case 4:
-      return "Thu 5";
+      return "Thứ 5";
     case 5:
-      return "Thu 6";
+      return "Thứ 6";
     case 6:
-      return "Thu 7";
+      return "Thứ 7";
     case 0:
-      return "Chu nhat";
+      return "Chủ nhật";
     default:
-      return "Khac";
+      return "Khác";
   }
 }
 
@@ -67,12 +67,12 @@ export default async function DoctorsPage() {
                     <p className="mt-2 text-sm text-slate-500">{doctor.departmentName}</p>
                   </div>
                   <div className="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700">
-                    {doctor.yearsOfExperience ? `${doctor.yearsOfExperience} nam kinh nghiem` : "Bac si chuyen khoa"}
+                    {doctor.yearsOfExperience ? `${doctor.yearsOfExperience} năm kinh nghiệm` : "Bác sĩ chuyên khoa"}
                   </div>
                 </div>
 
                 <p className="mt-6 text-sm leading-7 text-slate-600">
-                  {doctor.biography ?? "Thong tin dang duoc cap nhat."}
+                  {doctor.biography ?? "Thông tin đang được cập nhật."}
                 </p>
 
                 <div className="mt-6 flex flex-wrap gap-2">
@@ -84,8 +84,8 @@ export default async function DoctorsPage() {
                 </div>
 
                 <div className="mt-6 flex flex-wrap gap-4 text-sm text-slate-600">
-                  {doctor.licenseNumber ? <span>Chung chi: {doctor.licenseNumber}</span> : null}
-                  {formatCurrency(doctor.consultationFee) ? <span>Phi kham: {formatCurrency(doctor.consultationFee)}</span> : null}
+                  {doctor.licenseNumber ? <span>Chứng chỉ: {doctor.licenseNumber}</span> : null}
+                  {formatCurrency(doctor.consultationFee) ? <span>Phí khám: {formatCurrency(doctor.consultationFee)}</span> : null}
                 </div>
               </article>
             ))}

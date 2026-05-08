@@ -18,6 +18,13 @@ public interface IHospitalPrescriptionService
     Task<HospitalPrescriptionDetailDto> CreateAsync(
         CreateHospitalPrescriptionDto request,
         Guid? actorUserId,
+        string? actorUsername,
+        CancellationToken ct = default);
+    Task<HospitalPrescriptionDetailDto?> DispenseAsync(
+        Guid prescriptionId,
+        DispenseHospitalPrescriptionDto request,
+        Guid? actorUserId,
+        string? actorUsername,
         CancellationToken ct = default);
     Task DeleteAsync(Guid prescriptionId, CancellationToken ct = default);
 }

@@ -13,10 +13,14 @@ public class HospitalEncounterService : IHospitalEncounterService
     private static readonly string[] AllowedStatuses = ["InProgress", "Finalized"];
 
     private readonly IHospitalEncounterRepository _hospitalEncounterRepository;
+    private readonly IHospitalIdentityBridgeService _hospitalIdentityBridgeService;
 
-    public HospitalEncounterService(IHospitalEncounterRepository hospitalEncounterRepository)
+    public HospitalEncounterService(
+        IHospitalEncounterRepository hospitalEncounterRepository,
+        IHospitalIdentityBridgeService hospitalIdentityBridgeService)
     {
         _hospitalEncounterRepository = hospitalEncounterRepository;
+        _hospitalIdentityBridgeService = hospitalIdentityBridgeService;
     }
 
     public Task<PaginatedResult<HospitalEncounterSummaryDto>> GetWorklistAsync(
@@ -36,9 +40,10 @@ public class HospitalEncounterService : IHospitalEncounterService
     public async Task<HospitalEncounterDetailDto> CreateAsync(
         CreateHospitalEncounterDto request,
         Guid? actorUserId,
+        string? actorUsername,
         CancellationToken ct = default)
     {
-        actorUserId = await ResolveHospitalActorUserIdAsync(actorUserId, ct);
+        actorUserId = await ResolveHospitalActorUserIdAsync(actorUserId, actorUsername, ct);
         var normalizedStatus = NormalizeStatus(request.EncounterStatus);
         var appointment = await _hospitalEncounterRepository.GetAppointmentForEncounterAsync(request.AppointmentId, ct);
         if (appointment == null)
@@ -134,9 +139,10 @@ public class HospitalEncounterService : IHospitalEncounterService
         Guid encounterId,
         UpdateHospitalEncounterDto request,
         Guid? actorUserId,
+        string? actorUsername,
         CancellationToken ct = default)
     {
-        actorUserId = await ResolveHospitalActorUserIdAsync(actorUserId, ct);
+        actorUserId = await ResolveHospitalActorUserIdAsync(actorUserId, actorUsername, ct);
         var existing = await _hospitalEncounterRepository.GetEncounterAggregateAsync(encounterId, ct);
         if (existing == null)
         {
@@ -298,17 +304,8 @@ public class HospitalEncounterService : IHospitalEncounterService
         }, ct);
     }
 
-    private async Task<Guid?> ResolveHospitalActorUserIdAsync(Guid? actorUserId, CancellationToken ct)
-    {
-        if (!actorUserId.HasValue)
-        {
-            return null;
-        }
-
-        return await _hospitalEncounterRepository.HospitalUserExistsAsync(actorUserId.Value, ct)
-            ? actorUserId
-            : null;
-    }
+    private Task<Guid?> ResolveHospitalActorUserIdAsync(Guid? actorUserId, string? actorUsername, CancellationToken ct)
+        => _hospitalIdentityBridgeService.ResolveHospitalUserIdAsync(actorUserId, actorUsername, ct);
 
     private static string NormalizeStatus(string? status)
     {

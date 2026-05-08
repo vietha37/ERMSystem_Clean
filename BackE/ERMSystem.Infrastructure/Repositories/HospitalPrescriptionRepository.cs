@@ -45,6 +45,8 @@ public class HospitalPrescriptionRepository : IHospitalPrescriptionRepository
                 .ThenInclude(x => x.Encounter)
                     .ThenInclude(x => x.Diagnoses)
             .Include(x => x.PrescriptionItems)
+            .Include(x => x.Dispensings)
+                .ThenInclude(x => x.DispensedByUser)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(request.Status))
@@ -81,12 +83,17 @@ public class HospitalPrescriptionRepository : IHospitalPrescriptionRepository
                 .OrderByDescending(d => d.IsPrimary)
                 .ThenByDescending(d => d.NotedAtUtc)
                 .FirstOrDefault();
+            var latestDispensing = x.Dispensings
+                .OrderByDescending(d => d.DispensedAtUtc)
+                .ThenByDescending(d => d.Id)
+                .FirstOrDefault();
 
             return new HospitalPrescriptionSummaryDto
             {
                 PrescriptionId = x.Id,
                 PrescriptionNumber = x.PrescriptionNumber,
                 Status = x.Status,
+                LatestDispensingStatus = latestDispensing?.DispensingStatus,
                 EncounterId = encounter.Id,
                 EncounterNumber = encounter.EncounterNumber,
                 PatientId = encounter.PatientId,
@@ -99,6 +106,10 @@ public class HospitalPrescriptionRepository : IHospitalPrescriptionRepository
                 PrimaryDiagnosisName = diagnosis?.DiagnosisName,
                 TotalItems = x.PrescriptionItems.Count,
                 CreatedAtLocal = ConvertUtcToClinicLocal(x.CreatedAtUtc),
+                DispensedAtLocal = latestDispensing?.DispensedAtUtc.HasValue == true
+                    ? ConvertUtcToClinicLocal(latestDispensing.DispensedAtUtc.Value)
+                    : null,
+                DispensedByUsername = latestDispensing?.DispensedByUser?.Username,
                 Notes = x.Notes
             };
         }).ToArray();
@@ -128,6 +139,8 @@ public class HospitalPrescriptionRepository : IHospitalPrescriptionRepository
                     .ThenInclude(x => x.Diagnoses)
             .Include(x => x.PrescriptionItems)
                 .ThenInclude(x => x.Medicine)
+            .Include(x => x.Dispensings)
+                .ThenInclude(x => x.DispensedByUser)
             .FirstOrDefaultAsync(x => x.Id == prescriptionId, ct);
 
         if (entity == null)
@@ -140,12 +153,23 @@ public class HospitalPrescriptionRepository : IHospitalPrescriptionRepository
             .OrderByDescending(d => d.IsPrimary)
             .ThenByDescending(d => d.NotedAtUtc)
             .FirstOrDefault();
+        var latestDispensing = entity.Dispensings
+            .OrderByDescending(d => d.DispensedAtUtc)
+            .ThenByDescending(d => d.Id)
+            .FirstOrDefault();
 
         return new HospitalPrescriptionAggregateSnapshot
         {
             PrescriptionId = entity.Id,
+            OrderHeaderId = entity.OrderHeaderId,
             PrescriptionNumber = entity.PrescriptionNumber,
             Status = entity.Status,
+            LatestDispensingId = latestDispensing?.Id,
+            LatestDispensingStatus = latestDispensing?.DispensingStatus,
+            DispensedAtUtc = latestDispensing?.DispensedAtUtc,
+            DispensedByUserId = latestDispensing?.DispensedByUserId,
+            DispensedByUsername = latestDispensing?.DispensedByUser?.Username,
+            DispensingNotes = latestDispensing?.Notes,
             EncounterId = encounter.Id,
             EncounterNumber = encounter.EncounterNumber,
             PatientId = encounter.PatientId,
@@ -369,6 +393,43 @@ public class HospitalPrescriptionRepository : IHospitalPrescriptionRepository
         });
 
         return Task.CompletedTask;
+    }
+
+    public Task AddDispensingAsync(HospitalPrescriptionDispensingCreateCommand command, CancellationToken ct = default)
+    {
+        _hospitalDbContext.Dispensings.Add(new HospitalDispensingEntity
+        {
+            Id = command.DispensingId,
+            PrescriptionId = command.PrescriptionId,
+            DispensingStatus = command.DispensingStatus,
+            DispensedAtUtc = command.DispensedAtUtc,
+            DispensedByUserId = command.DispensedByUserId,
+            Notes = command.Notes
+        });
+
+        return Task.CompletedTask;
+    }
+
+    public async Task UpdatePrescriptionStatusAsync(Guid prescriptionId, string status, CancellationToken ct = default)
+    {
+        var prescription = await _hospitalDbContext.Prescriptions.FirstOrDefaultAsync(x => x.Id == prescriptionId, ct);
+        if (prescription == null)
+        {
+            throw new KeyNotFoundException("Khong tim thay don thuoc.");
+        }
+
+        prescription.Status = status;
+    }
+
+    public async Task UpdateOrderHeaderStatusAsync(Guid orderHeaderId, string status, CancellationToken ct = default)
+    {
+        var orderHeader = await _hospitalDbContext.OrderHeaders.FirstOrDefaultAsync(x => x.Id == orderHeaderId, ct);
+        if (orderHeader == null)
+        {
+            throw new KeyNotFoundException("Khong tim thay lenh chi dinh don thuoc.");
+        }
+
+        orderHeader.OrderStatus = status;
     }
 
     public Task AddOutboxMessageAsync(HospitalPrescriptionOutboxCreateCommand command, CancellationToken ct = default)

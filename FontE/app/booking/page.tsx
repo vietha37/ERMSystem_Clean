@@ -1,15 +1,15 @@
-import { BookingForm } from "@/components/public/BookingForm";
+﻿import { BookingForm } from "@/components/public/BookingForm";
 import { PublicPageShell } from "@/components/public/PublicPageShell";
 import { SectionHeading } from "@/components/public/SectionHeading";
 import { hospitalCatalogService } from "@/services/hospitalCatalogService";
 import { hospitalDoctorService } from "@/services/hospitalDoctorService";
 
 const fallbackServices = [
-  "Kham tong quat cao cap",
-  "Lay mau xet nghiem tai nha",
-  "Kham chuyen khoa tim mach",
-  "Kham san phu khoa",
-  "Tam soat doanh nghiep",
+  "Khám tổng quát cao cấp",
+  "Lấy mẫu xét nghiệm tại nhà",
+  "Khám chuyên khoa tim mạch",
+  "Khám sản phụ khoa",
+  "Tầm soát doanh nghiệp",
 ];
 
 export default async function BookingPage() {
@@ -44,16 +44,16 @@ export default async function BookingPage() {
         <div className="grid gap-10 lg:grid-cols-[0.92fr_1.08fr] lg:items-start">
           <div>
             <SectionHeading
-              eyebrow="Dat lich thong minh"
-              title="Trang booking da bat dau di vao luong dat lich that tren database dich."
-              description="Nguoi benh chon chuyen khoa, bac si, ngay gio va gui yeu cau. He thong kiem tra lich lam viec va tao lich hen neu hop le."
+              eyebrow="Đặt lịch thông minh"
+              title="Trang booking đã bắt đầu đi vào luồng đặt lịch thật trên database đích."
+              description="Người bệnh chọn chuyên khoa, bác sĩ, ngày giờ và gửi yêu cầu. Hệ thống kiểm tra lịch làm việc và tạo lịch hẹn nếu hợp lệ."
             />
 
             <div className="mt-8 grid gap-4">
               {[
-                "Kiem tra khung gio dua tren lich lam viec cua bac si.",
-                "Tu dong tao ho so benh nhan moi neu chua ton tai trong he thong dich.",
-                "Day su kien AppointmentCreated.v1 vao notification outbox de xu ly nhac lich o phase sau.",
+                "Kiểm tra khung giờ dựa trên lịch làm việc của bác sĩ.",
+                "Tự động tạo hồ sơ bệnh nhân mới nếu chưa tồn tại trong hệ thống đích.",
+                "Đẩy sự kiện AppointmentCreated.v1 vào notification outbox để xử lý nhắc lịch ở phase sau.",
               ].map((item) => (
                 <div key={item} className="rounded-[1.6rem] border border-slate-200 bg-white p-5 text-sm leading-7 text-slate-700 shadow-[0_20px_55px_rgba(15,23,42,0.05)]">
                   {item}
