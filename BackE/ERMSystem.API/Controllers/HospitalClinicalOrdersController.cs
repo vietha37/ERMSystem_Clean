@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using ERMSystem.Application.DTOs;
+using ERMSystem.Application.Authorization;
 using ERMSystem.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,7 +9,7 @@ namespace ERMSystem.API.Controllers;
 
 [ApiController]
 [Route("api/hospital-clinical-orders")]
-[Authorize(Roles = "Admin,Doctor,Receptionist")]
+[Authorize]
 public class HospitalClinicalOrdersController : ControllerBase
 {
     private readonly IHospitalClinicalOrderService _hospitalClinicalOrderService;
@@ -19,6 +20,7 @@ public class HospitalClinicalOrdersController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Policy = AppPermissions.HospitalClinicalOrders.Read)]
     public async Task<IActionResult> GetWorklist(
         [FromQuery] HospitalClinicalOrderWorklistRequestDto request,
         CancellationToken ct)
@@ -28,6 +30,7 @@ public class HospitalClinicalOrdersController : ControllerBase
     }
 
     [HttpGet("eligible-encounters")]
+    [Authorize(Policy = AppPermissions.HospitalClinicalOrders.Read)]
     public async Task<IActionResult> GetEligibleEncounters(CancellationToken ct)
     {
         var result = await _hospitalClinicalOrderService.GetEligibleEncountersAsync(ct);
@@ -35,6 +38,7 @@ public class HospitalClinicalOrdersController : ControllerBase
     }
 
     [HttpGet("catalog")]
+    [Authorize(Policy = AppPermissions.HospitalClinicalOrders.Read)]
     public async Task<IActionResult> GetCatalog(CancellationToken ct)
     {
         var result = await _hospitalClinicalOrderService.GetCatalogAsync(ct);
@@ -42,6 +46,7 @@ public class HospitalClinicalOrdersController : ControllerBase
     }
 
     [HttpGet("{clinicalOrderId:guid}")]
+    [Authorize(Policy = AppPermissions.HospitalClinicalOrders.Read)]
     public async Task<IActionResult> GetById(Guid clinicalOrderId, CancellationToken ct)
     {
         var result = await _hospitalClinicalOrderService.GetByIdAsync(clinicalOrderId, ct);
@@ -54,6 +59,7 @@ public class HospitalClinicalOrdersController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = AppPermissions.HospitalClinicalOrders.Create)]
     public async Task<IActionResult> Create(
         [FromBody] CreateHospitalClinicalOrderDto request,
         CancellationToken ct)
@@ -83,6 +89,7 @@ public class HospitalClinicalOrdersController : ControllerBase
     }
 
     [HttpPost("{clinicalOrderId:guid}/lab-result")]
+    [Authorize(Policy = AppPermissions.HospitalClinicalOrders.Update)]
     public async Task<IActionResult> RecordLabResult(
         Guid clinicalOrderId,
         [FromBody] RecordHospitalLabResultDto request,
@@ -116,6 +123,7 @@ public class HospitalClinicalOrdersController : ControllerBase
     }
 
     [HttpPost("{clinicalOrderId:guid}/imaging-report")]
+    [Authorize(Policy = AppPermissions.HospitalClinicalOrders.Update)]
     public async Task<IActionResult> RecordImagingReport(
         Guid clinicalOrderId,
         [FromBody] RecordHospitalImagingReportDto request,

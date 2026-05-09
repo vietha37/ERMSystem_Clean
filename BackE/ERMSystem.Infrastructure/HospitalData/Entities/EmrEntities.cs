@@ -128,4 +128,7 @@ public class HospitalOrderHeaderEntity
 
     public HospitalEncounterEntity Encounter { get; set; } = null!;
     public HospitalUserEntity? OrderedByUser { get; set; }
+    public ICollection<HospitalLabOrderEntity> LabOrders { get; set; } = new List<HospitalLabOrderEntity>();
+    public ICollection<HospitalImagingOrderEntity> ImagingOrders { get; set; } = new List<HospitalImagingOrderEntity>();
+    public ICollection<HospitalPrescriptionEntity> Prescriptions { get; set; } = new List<HospitalPrescriptionEntity>();
 }

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ERMSystem.Application.Authorization;
 using ERMSystem.Application.DTOs;
 using ERMSystem.Application.DTOs.Common;
 using ERMSystem.Application.Interfaces;
@@ -26,7 +27,7 @@ namespace ERMSystem.API.Controllers
 
         // GET: api/patients
         [HttpGet]
-        [Authorize(Roles = "Admin,Doctor,Receptionist")]
+        [Authorize(Policy = AppPermissions.Patients.Read)]
         public async Task<IActionResult> GetAllPatients([FromQuery] PaginationRequest request, CancellationToken ct)
         {
             var result = await _patientService.GetAllPatientsAsync(request, ct);
@@ -35,7 +36,7 @@ namespace ERMSystem.API.Controllers
 
         // GET: api/patients/{id}
         [HttpGet("{id}")]
-        [Authorize(Roles = "Admin,Doctor,Receptionist")]
+        [Authorize(Policy = AppPermissions.Patients.Read)]
         public async Task<IActionResult> GetPatientById(Guid id, CancellationToken ct)
         {
             var patient = await _patientService.GetPatientByIdAsync(id, ct);
@@ -46,7 +47,7 @@ namespace ERMSystem.API.Controllers
 
         // GET: api/patients/me
         [HttpGet("me")]
-        [Authorize(Roles = "Patient")]
+        [Authorize(Policy = AppPermissions.Patients.SelfRead)]
         public async Task<IActionResult> GetMyProfile(CancellationToken ct)
         {
             var userIdRaw = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
@@ -68,7 +69,7 @@ namespace ERMSystem.API.Controllers
 
         // POST: api/patients
         [HttpPost]
-        [Authorize(Roles = "Admin,Receptionist")]
+        [Authorize(Policy = AppPermissions.Patients.Create)]
         public async Task<IActionResult> CreatePatient([FromBody] CreatePatientDto createPatientDto, CancellationToken ct)
         {
             if (!ModelState.IsValid)
@@ -80,7 +81,7 @@ namespace ERMSystem.API.Controllers
 
         // PUT: api/patients/{id}
         [HttpPut("{id}")]
-        [Authorize(Roles = "Admin,Receptionist")]
+        [Authorize(Policy = AppPermissions.Patients.Update)]
         public async Task<IActionResult> UpdatePatient(Guid id, [FromBody] UpdatePatientDto updatePatientDto, CancellationToken ct)
         {
             if (!ModelState.IsValid)
@@ -100,7 +101,7 @@ namespace ERMSystem.API.Controllers
 
         // DELETE: api/patients/{id}
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin,Receptionist")]
+        [Authorize(Policy = AppPermissions.Patients.Delete)]
         public async Task<IActionResult> DeletePatient(Guid id, CancellationToken ct)
         {
             try

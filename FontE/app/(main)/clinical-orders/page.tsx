@@ -190,7 +190,7 @@ export default function ClinicalOrdersPage() {
         setEligibleEncounters(encounterData);
         setCatalog(catalogData);
       } catch (error: unknown) {
-        toast.error(getApiErrorMessage(error, "Kh�ng th? t?i d? li?u ch? d?nh c?n l�m s�ng."));
+        toast.error(getApiErrorMessage(error, "Không thể tải dữ liệu chỉ định cận lâm sàng."));
       } finally {
         setIsLoading(false);
         setIsRefreshing(false);
@@ -267,7 +267,7 @@ export default function ClinicalOrdersPage() {
       setSelectedDetail(detail);
       setIsDetailModalOpen(true);
     } catch (error: unknown) {
-      toast.error(getApiErrorMessage(error, "Kh�ng th? t?i chi ti?t ch? d?nh."));
+      toast.error(getApiErrorMessage(error, "Không thể tải chi tiết chỉ định."));
     }
   };
 
@@ -275,12 +275,12 @@ export default function ClinicalOrdersPage() {
     event.preventDefault();
 
     if (!selectedEncounterId) {
-      toast.error("Can chon encounter de tao chi dinh.");
+      toast.error("Cần chọn encounter để tạo chỉ định.");
       return;
     }
 
     if (!selectedServiceId) {
-      toast.error("Can chon dich vu can lam sang.");
+      toast.error("Cần chọn dịch vụ cận lâm sàng.");
       return;
     }
 
@@ -291,12 +291,12 @@ export default function ClinicalOrdersPage() {
         buildCreatePayload(selectedEncounterId, createCategory, selectedServiceId, priorityCode)
       );
 
-      toast.success("�� t?o ch? d?nh c?n l�m s�ng.");
+      toast.success("Đã tạo chỉ định cận lâm sàng.");
       setIsCreateModalOpen(false);
       resetCreateForm();
       await fetchData(true);
     } catch (error: unknown) {
-      toast.error(getApiErrorMessage(error, "Kh�ng th? t?o ch? d?nh."));
+      toast.error(getApiErrorMessage(error, "Không thể tạo chỉ định."));
     } finally {
       setIsSubmitting(false);
     }
@@ -334,13 +334,13 @@ export default function ClinicalOrdersPage() {
     event.preventDefault();
 
     if (!labResultTarget) {
-      toast.error("Kh�ng x�c d?nh duoc chi dinh xet nghiem.");
+      toast.error("Không xác định được chỉ định xét nghiệm.");
       return;
     }
 
     const resultItems = buildLabResultItems(labResultItems);
     if (resultItems.length === 0) {
-      toast.error("Can co it nhat mot dong ket qua xet nghiem hop le.");
+      toast.error("Cần có ít nhất một dòng kết quả xét nghiệm hợp lệ.");
       return;
     }
 
@@ -355,7 +355,7 @@ export default function ClinicalOrdersPage() {
         }
       );
 
-      toast.success("�� ghi nh?n k?t qu? x�t nghi?m.");
+      toast.success("Đã ghi nhận kết quả xét nghiệm.");
       setIsLabResultModalOpen(false);
       setLabResultTarget(null);
       resetLabResultForm();
@@ -364,7 +364,7 @@ export default function ClinicalOrdersPage() {
       }
       await fetchData(true);
     } catch (error: unknown) {
-      toast.error(getApiErrorMessage(error, "Kh�ng th? ghi nh?n k?t qu? x�t nghi?m."));
+      toast.error(getApiErrorMessage(error, "Không thể ghi nhận kết quả xét nghiệm."));
     } finally {
       setIsSubmitting(false);
     }
@@ -380,12 +380,12 @@ export default function ClinicalOrdersPage() {
     event.preventDefault();
 
     if (!imagingReportTarget) {
-      toast.error("Kh�ng x�c d?nh duoc chi dinh chan doan hinh anh.");
+      toast.error("Không xác định được chỉ định chẩn đoán hình ảnh.");
       return;
     }
 
     if (!findings.trim() && !impression.trim()) {
-      toast.error("Can co findings hoac impression de luu bao cao.");
+      toast.error("Cần có findings hoặc impression để lưu báo cáo.");
       return;
     }
 
@@ -401,7 +401,7 @@ export default function ClinicalOrdersPage() {
         }
       );
 
-      toast.success("�� ghi nh?n b�o c�o ch?n do�n h�nh ?nh.");
+      toast.success("Đã ghi nhận báo cáo chẩn đoán hình ảnh.");
       setIsImagingReportModalOpen(false);
       setImagingReportTarget(null);
       resetImagingReportForm();
@@ -410,7 +410,7 @@ export default function ClinicalOrdersPage() {
       }
       await fetchData(true);
     } catch (error: unknown) {
-      toast.error(getApiErrorMessage(error, "Kh�ng th? ghi nh?n b�o c�o."));
+      toast.error(getApiErrorMessage(error, "Không thể ghi nhận báo cáo."));
     } finally {
       setIsSubmitting(false);
     }
@@ -425,11 +425,11 @@ export default function ClinicalOrdersPage() {
               Clinical orders
             </p>
             <h1 className="mt-3 text-3xl font-bold text-slate-950">
-              Ch? d?nh c?n l�m s�ng
+              Chỉ định cận lâm sàng
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">
-              Qu?n l� worklist x�t nghi?m v� ch?n do�n h�nh ?nh theo hospital database m?i,
-              b�m theo encounter v� order header.
+              Quản lý worklist xét nghiệm và chẩn đoán hình ảnh theo hospital database
+              mới, bám theo encounter và order header.
             </p>
           </div>
 
@@ -438,16 +438,14 @@ export default function ClinicalOrdersPage() {
               type="text"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Tim theo ma chi dinh, benh nhan, dich vu..."
+              placeholder="Tìm theo mã chỉ định, bệnh nhân, dịch vụ..."
               className="min-w-[260px] rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
             />
 
             <select
               value={categoryFilter}
               onChange={(event) => {
-                setCategoryFilter(
-                  event.target.value as HospitalClinicalOrderCategory | "All"
-                );
+                setCategoryFilter(event.target.value as HospitalClinicalOrderCategory | "All");
                 setPageNumber(1);
               }}
               className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
@@ -474,28 +472,32 @@ export default function ClinicalOrdersPage() {
               ))}
             </select>
 
-            <Button variant="secondary" onClick={() => void fetchData(true)} disabled={isRefreshing}>
-              {isRefreshing ? "�ang l�m m?i..." : "Lam moi"}
+            <Button
+              variant="secondary"
+              onClick={() => void fetchData(true)}
+              disabled={isRefreshing}
+            >
+              {isRefreshing ? "Đang làm mới..." : "Làm mới"}
             </Button>
-            <Button onClick={() => setIsCreateModalOpen(true)}>Tao chi dinh</Button>
+            <Button onClick={() => setIsCreateModalOpen(true)}>Tạo chỉ định</Button>
           </div>
         </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <MetricCard label="Tá»ng chá» Äá»nh" value={metrics.total} tone="slate" />
-        <MetricCard label="X�t nghi?m" value={metrics.Lab} tone="cyan" />
-        <MetricCard label="Ch?n do�n hinh anh" value={metrics.Imaging} tone="violet" />
-        <MetricCard label="�ang ch? ket qua" value={metrics.Requested} tone="amber" />
-        <MetricCard label="�� ho�n th�nh" value={metrics.Completed} tone="emerald" />
+        <MetricCard label="Tổng chỉ định" value={metrics.total} tone="slate" />
+        <MetricCard label="Xét nghiệm" value={metrics.Lab} tone="cyan" />
+        <MetricCard label="Chẩn đoán hình ảnh" value={metrics.Imaging} tone="violet" />
+        <MetricCard label="Đang chờ kết quả" value={metrics.Requested} tone="amber" />
+        <MetricCard label="Đã hoàn thành" value={metrics.Completed} tone="emerald" />
       </div>
 
       <Card className="overflow-hidden border border-slate-100 p-0 shadow-sm">
         <div className="flex flex-col gap-3 border-b border-slate-100 px-6 py-5 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Danh sach chi dinh</h2>
+            <h2 className="text-lg font-bold text-slate-900">Danh sách chỉ định</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Hien thi {startItem}-{endItem} / {totalCount} chi dinh.
+              Hiển thị {startItem}-{endItem} / {totalCount} chỉ định.
             </p>
           </div>
 
@@ -507,22 +509,20 @@ export default function ClinicalOrdersPage() {
             }}
             className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
           >
-            <option value={10}>10 dong / trang</option>
-            <option value={20}>20 dong / trang</option>
-            <option value={50}>50 dong / trang</option>
+            <option value={10}>10 dòng / trang</option>
+            <option value={20}>20 dòng / trang</option>
+            <option value={50}>50 dòng / trang</option>
           </select>
         </div>
 
         {isLoading ? (
           <div className="flex flex-col items-center justify-center p-16">
             <div className="mb-4 h-10 w-10 animate-spin rounded-full border-4 border-violet-100 border-t-violet-600" />
-            <p className="text-sm font-medium text-slate-500">
-              �ang t?i worklist chi dinh...
-            </p>
+            <p className="text-sm font-medium text-slate-500">Đang tải worklist chỉ định...</p>
           </div>
         ) : orders.length === 0 ? (
           <div className="p-16 text-center text-sm text-slate-500">
-            Chua co chi dinh nao khop bo loc hien tai.
+            Chưa có chỉ định nào khớp bộ lọc hiện tại.
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -530,22 +530,22 @@ export default function ClinicalOrdersPage() {
               <thead>
                 <tr className="bg-slate-50">
                   <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
-                    Thoi gian
+                    Thời gian
                   </th>
                   <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
-                    B?nh nh�n
+                    Bệnh nhân
                   </th>
                   <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
-                    Dich vu
+                    Dịch vụ
                   </th>
                   <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
-                    Phan loai
+                    Phân loại
                   </th>
                   <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
-                    Tom tat
+                    Tóm tắt
                   </th>
                   <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
-                    Thao tac
+                    Thao tác
                   </th>
                 </tr>
               </thead>
@@ -561,7 +561,7 @@ export default function ClinicalOrdersPage() {
                       </div>
                       <div className="mt-1 text-sm text-slate-500">{order.orderNumber}</div>
                       <div className="mt-1 text-xs text-slate-400">
-                        {order.orderedByUsername || "Kh�ng r� ngu?i ch? d?nh"}
+                        {order.orderedByUsername || "Không rõ người chỉ định"}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -572,9 +572,7 @@ export default function ClinicalOrdersPage() {
                       <div className="mt-1 text-xs text-slate-400">{order.encounterNumber}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="font-semibold text-slate-900">
-                        {order.serviceName}
-                      </div>
+                      <div className="font-semibold text-slate-900">{order.serviceName}</div>
                       <div className="mt-1 text-sm text-slate-500">{order.serviceCode}</div>
                       <div className="mt-1 text-xs text-slate-400">
                         {order.doctorName} / {order.clinicName}
@@ -583,31 +581,35 @@ export default function ClinicalOrdersPage() {
                     <td className="px-6 py-4">
                       <div className="flex flex-col gap-2">
                         <span
-                          className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-bold ${getCategoryClass(order.category)}`}
+                          className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-bold ${getCategoryClass(
+                            order.category
+                          )}`}
                         >
                           {getCategoryLabel(order.category)}
                         </span>
                         <span
-                          className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-bold ${getStatusClass(order.status)}`}
+                          className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-bold ${getStatusClass(
+                            order.status
+                          )}`}
                         >
                           {getStatusLabel(order.status)}
                         </span>
                         {order.priorityCode && (
                           <span className="text-xs text-slate-500">
-                            Uu tien: {order.priorityCode}
+                            Ưu tiên: {order.priorityCode}
                           </span>
                         )}
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="max-w-[320px] text-sm leading-6 text-slate-600">
-                        {order.summaryText || "Chua co noi dung ket qua."}
+                        {order.summaryText || "Chưa có nội dung kết quả."}
                       </div>
                       <div className="mt-2 text-xs text-slate-400">
-                        So dong ket qua: {order.resultItemCount}
+                        Số dòng kết quả: {order.resultItemCount}
                       </div>
                       <div className="mt-1 text-xs text-slate-400">
-                        Hoan thanh: {formatDateTime(order.completedAtLocal)}
+                        Hoàn thành: {formatDateTime(order.completedAtLocal)}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -617,14 +619,14 @@ export default function ClinicalOrdersPage() {
                           className="justify-start"
                           onClick={() => void openDetail(order.clinicalOrderId)}
                         >
-                          Xem chi tiet
+                          Xem chi tiết
                         </Button>
                         {order.status !== "Completed" && order.category === "Lab" && (
                           <Button
                             className="justify-start"
                             onClick={() => openLabResultModal(order)}
                           >
-                            Nh?p k?t qu?
+                            Nhập kết quả
                           </Button>
                         )}
                         {order.status !== "Completed" && order.category === "Imaging" && (
@@ -632,7 +634,7 @@ export default function ClinicalOrdersPage() {
                             className="justify-start"
                             onClick={() => openImagingReportModal(order)}
                           >
-                            Nh?p b�o c�o
+                            Nhập báo cáo
                           </Button>
                         )}
                       </div>
@@ -655,14 +657,12 @@ export default function ClinicalOrdersPage() {
               disabled={pageNumber <= 1}
               onClick={() => setPageNumber((current) => Math.max(1, current - 1))}
             >
-              Trang truoc
+              Trang trước
             </Button>
             <Button
               variant="secondary"
               disabled={pageNumber >= totalPages}
-              onClick={() =>
-                setPageNumber((current) => Math.min(totalPages, current + 1))
-              }
+              onClick={() => setPageNumber((current) => Math.min(totalPages, current + 1))}
             >
               Trang sau
             </Button>
@@ -676,19 +676,17 @@ export default function ClinicalOrdersPage() {
           setIsCreateModalOpen(false);
           resetCreateForm();
         }}
-        title="T?o ch? d?nh c?n l�m s�ng"
+        title="Tạo chỉ định cận lâm sàng"
       >
         <form className="space-y-4" onSubmit={handleCreateOrder}>
           <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">
-              Encounter
-            </label>
+            <label className="mb-2 block text-sm font-semibold text-slate-700">Encounter</label>
             <select
               value={selectedEncounterId}
               onChange={(event) => setSelectedEncounterId(event.target.value)}
               className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
             >
-              <option value="">Ch?n encounter</option>
+              <option value="">Chọn encounter</option>
               {availableEncounters.map((encounter) => (
                 <option key={encounter.encounterId} value={encounter.encounterId}>
                   {encounter.encounterNumber} - {encounter.patientName} -{" "}
@@ -701,7 +699,7 @@ export default function ClinicalOrdersPage() {
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <label className="mb-2 block text-sm font-semibold text-slate-700">
-                Lo?i ch? d?nh
+                Loại chỉ định
               </label>
               <select
                 value={createCategory}
@@ -710,14 +708,14 @@ export default function ClinicalOrdersPage() {
                 }
                 className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
               >
-                <option value="Lab">X�t nghi?m</option>
-                <option value="Imaging">Ch?n do�n hinh anh</option>
+                <option value="Lab">Xét nghiệm</option>
+                <option value="Imaging">Chẩn đoán hình ảnh</option>
               </select>
             </div>
 
             <div>
               <label className="mb-2 block text-sm font-semibold text-slate-700">
-                M?c uu ti�n
+                Mức ưu tiên
               </label>
               <input
                 type="text"
@@ -731,15 +729,13 @@ export default function ClinicalOrdersPage() {
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">
-              Dich vu
-            </label>
+            <label className="mb-2 block text-sm font-semibold text-slate-700">Dịch vụ</label>
             <select
               value={selectedServiceId}
               onChange={(event) => setSelectedServiceId(event.target.value)}
               className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
             >
-              <option value="">Ch?n d?ch v?</option>
+              <option value="">Chọn dịch vụ</option>
               {availableServices.map((service) => (
                 <option key={service.serviceId} value={service.serviceId}>
                   {service.serviceCode} - {service.serviceName}
@@ -758,10 +754,10 @@ export default function ClinicalOrdersPage() {
                 resetCreateForm();
               }}
             >
-              ��ng
+              Đóng
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "�ang t?o..." : "Luu ch? d?nh"}
+              {isSubmitting ? "Đang tạo..." : "Lưu chỉ định"}
             </Button>
           </div>
         </form>
@@ -773,25 +769,22 @@ export default function ClinicalOrdersPage() {
           setIsDetailModalOpen(false);
           setSelectedDetail(null);
         }}
-        title="Chi tiet chi dinh"
+        title="Chi tiết chỉ định"
       >
         {!selectedDetail ? (
-          <div className="py-8 text-sm text-slate-500">�ang t?i chi tiet...</div>
+          <div className="py-8 text-sm text-slate-500">Đang tải chi tiết...</div>
         ) : (
           <div className="space-y-4">
             <div className="grid gap-3 md:grid-cols-2">
-              <InfoTile label="Ma chi dinh" value={selectedDetail.orderNumber} />
-              <InfoTile
-                label="Loai"
-                value={getCategoryLabel(selectedDetail.category)}
-              />
-              <InfoTile label="B?nh nh�n" value={selectedDetail.patientName} />
-              <InfoTile label="Ma benh an" value={selectedDetail.medicalRecordNumber} />
+              <InfoTile label="Mã chỉ định" value={selectedDetail.orderNumber} />
+              <InfoTile label="Loại" value={getCategoryLabel(selectedDetail.category)} />
+              <InfoTile label="Bệnh nhân" value={selectedDetail.patientName} />
+              <InfoTile label="Mã bệnh án" value={selectedDetail.medicalRecordNumber} />
               <InfoTile label="Encounter" value={selectedDetail.encounterNumber} />
-              <InfoTile label="Dich vu" value={selectedDetail.serviceName} />
-              <InfoTile label="Trang thai" value={getStatusLabel(selectedDetail.status)} />
+              <InfoTile label="Dịch vụ" value={selectedDetail.serviceName} />
+              <InfoTile label="Trạng thái" value={getStatusLabel(selectedDetail.status)} />
               <InfoTile
-                label="Hoan thanh"
+                label="Hoàn thành"
                 value={formatDateTime(selectedDetail.completedAtLocal)}
               />
             </div>
@@ -799,22 +792,22 @@ export default function ClinicalOrdersPage() {
             {selectedDetail.category === "Lab" ? (
               <div className="space-y-3">
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                  <div className="text-sm font-semibold text-slate-800">Th�ng tin m?u</div>
+                  <div className="text-sm font-semibold text-slate-800">Thông tin mẫu</div>
                   <div className="mt-2 grid gap-2 text-sm text-slate-600 md:grid-cols-2">
-                    <div>M� m?u: {selectedDetail.specimenCode || "--"}</div>
-                    <div>Trang thai: {selectedDetail.specimenStatus || "--"}</div>
-                    <div>Lay mau: {formatDateTime(selectedDetail.collectedAtLocal)}</div>
-                    <div>Tiep nhan: {formatDateTime(selectedDetail.receivedAtLocal)}</div>
+                    <div>Mã mẫu: {selectedDetail.specimenCode || "--"}</div>
+                    <div>Trạng thái: {selectedDetail.specimenStatus || "--"}</div>
+                    <div>Lấy mẫu: {formatDateTime(selectedDetail.collectedAtLocal)}</div>
+                    <div>Tiếp nhận: {formatDateTime(selectedDetail.receivedAtLocal)}</div>
                   </div>
                 </div>
 
                 <div>
                   <div className="mb-2 text-sm font-semibold text-slate-800">
-                    K?t qu? x�t nghi?m
+                    Kết quả xét nghiệm
                   </div>
                   {selectedDetail.resultItems.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-sm text-slate-500">
-                      Chua c� d�ng k?t qu? n�o.
+                      Chưa có dòng kết quả nào.
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -830,7 +823,7 @@ export default function ClinicalOrdersPage() {
                             {item.resultValue || "--"} {item.unit || ""}
                           </div>
                           <div className="mt-1 text-xs text-slate-400">
-                            Ref: {item.referenceRange || "--"} | Bat thuong:{" "}
+                            Ref: {item.referenceRange || "--"} | Bất thường:{" "}
                             {item.abnormalFlag || "--"}
                           </div>
                         </div>
@@ -854,16 +847,13 @@ export default function ClinicalOrdersPage() {
                   </div>
                 </div>
                 <div className="grid gap-3 md:grid-cols-2">
-                  <InfoTile label="Nguoi ky" value={selectedDetail.signedByUsername || "--"} />
+                  <InfoTile label="Người ký" value={selectedDetail.signedByUsername || "--"} />
                   <InfoTile
-                    label="Thoi diem ky"
+                    label="Thời điểm ký"
                     value={formatDateTime(selectedDetail.signedAtLocal)}
                   />
-                  <InfoTile label="Li�n k?t b�o c�o" value={selectedDetail.reportUri || "--"} />
-                  <InfoTile
-                    label="Tom tat"
-                    value={selectedDetail.summaryText || "--"}
-                  />
+                  <InfoTile label="Liên kết báo cáo" value={selectedDetail.reportUri || "--"} />
+                  <InfoTile label="Tóm tắt" value={selectedDetail.summaryText || "--"} />
                 </div>
               </div>
             )}
@@ -878,7 +868,7 @@ export default function ClinicalOrdersPage() {
           setLabResultTarget(null);
           resetLabResultForm();
         }}
-        title="Nh?p k?t qu? xet nghiem"
+        title="Nhập kết quả xét nghiệm"
       >
         <form className="space-y-4" onSubmit={handleRecordLabResult}>
           {labResultTarget && (
@@ -889,31 +879,32 @@ export default function ClinicalOrdersPage() {
           )}
 
           <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">
-              M� m?u
-            </label>
+            <label className="mb-2 block text-sm font-semibold text-slate-700">Mã mẫu</label>
             <input
               type="text"
               value={specimenCode}
               onChange={(event) => setSpecimenCode(event.target.value)}
-              placeholder="�? tr?ng d? h? th?ng t? sinh"
+              placeholder="Để trống nếu hệ thống tự sinh"
               className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
             />
           </div>
 
           <div className="space-y-3">
             {labResultItems.map((item, index) => (
-              <div key={`${index}-${item.analyteCode ?? ""}`} className="rounded-2xl border border-slate-100 p-4">
+              <div
+                key={`${index}-${item.analyteCode ?? ""}`}
+                className="rounded-2xl border border-slate-100 p-4"
+              >
                 <div className="mb-3 flex items-center justify-between">
                   <div className="text-sm font-semibold text-slate-800">
-                    ��ng ket qua {index + 1}
+                    Dòng kết quả {index + 1}
                   </div>
                   <button
                     type="button"
                     onClick={() => handleRemoveLabResultRow(index)}
                     className="text-sm font-medium text-rose-600"
                   >
-                    X�a d�ng
+                    Xóa dòng
                   </button>
                 </div>
 
@@ -924,7 +915,7 @@ export default function ClinicalOrdersPage() {
                     onChange={(event) =>
                       handleUpdateLabResultRow(index, "analyteName", event.target.value)
                     }
-                    placeholder="T�n ch? s?"
+                    placeholder="Tên chỉ số"
                     className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
                   />
                   <input
@@ -933,7 +924,7 @@ export default function ClinicalOrdersPage() {
                     onChange={(event) =>
                       handleUpdateLabResultRow(index, "analyteCode", event.target.value)
                     }
-                    placeholder="M� ch? s?"
+                    placeholder="Mã chỉ số"
                     className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
                   />
                   <input
@@ -942,7 +933,7 @@ export default function ClinicalOrdersPage() {
                     onChange={(event) =>
                       handleUpdateLabResultRow(index, "resultValue", event.target.value)
                     }
-                    placeholder="Gia tri"
+                    placeholder="Giá trị"
                     className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
                   />
                   <input
@@ -951,7 +942,7 @@ export default function ClinicalOrdersPage() {
                     onChange={(event) =>
                       handleUpdateLabResultRow(index, "unit", event.target.value)
                     }
-                    placeholder="�on v?"
+                    placeholder="Đơn vị"
                     className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
                   />
                   <input
@@ -960,7 +951,7 @@ export default function ClinicalOrdersPage() {
                     onChange={(event) =>
                       handleUpdateLabResultRow(index, "referenceRange", event.target.value)
                     }
-                    placeholder="Kho?ng tham chi?u"
+                    placeholder="Khoảng tham chiếu"
                     className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
                   />
                   <input
@@ -969,7 +960,7 @@ export default function ClinicalOrdersPage() {
                     onChange={(event) =>
                       handleUpdateLabResultRow(index, "abnormalFlag", event.target.value)
                     }
-                    placeholder="C?nh b�o b?t thu?ng"
+                    placeholder="Cảnh báo bất thường"
                     className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
                   />
                 </div>
@@ -978,7 +969,7 @@ export default function ClinicalOrdersPage() {
           </div>
 
           <Button type="button" variant="secondary" onClick={handleAddLabResultRow}>
-            Th�m d�ng k?t qu?
+            Thêm dòng kết quả
           </Button>
 
           <div className="flex justify-end gap-3 pt-2">
@@ -991,10 +982,10 @@ export default function ClinicalOrdersPage() {
                 resetLabResultForm();
               }}
             >
-              ��ng
+              Đóng
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "�ang luu..." : "Luu k?t qu?"}
+              {isSubmitting ? "Đang lưu..." : "Lưu kết quả"}
             </Button>
           </div>
         </form>
@@ -1007,7 +998,7 @@ export default function ClinicalOrdersPage() {
           setImagingReportTarget(null);
           resetImagingReportForm();
         }}
-        title="Nh?p b�o c�o chan doan hinh anh"
+        title="Nhập báo cáo chẩn đoán hình ảnh"
       >
         <form className="space-y-4" onSubmit={handleRecordImagingReport}>
           {imagingReportTarget && (
@@ -1018,15 +1009,13 @@ export default function ClinicalOrdersPage() {
           )}
 
           <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">
-              Findings
-            </label>
+            <label className="mb-2 block text-sm font-semibold text-slate-700">Findings</label>
             <textarea
               value={findings}
               onChange={(event) => setFindings(event.target.value)}
               rows={5}
               className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
-              placeholder="M� t? chi ti?t k?t qu? ch?n do�n h�nh ?nh..."
+              placeholder="Mô tả chi tiết kết quả chẩn đoán hình ảnh..."
             />
           </div>
 
@@ -1039,19 +1028,19 @@ export default function ClinicalOrdersPage() {
               onChange={(event) => setImpression(event.target.value)}
               rows={4}
               className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
-              placeholder="K?t lu?n ch?n do�n..."
+              placeholder="Kết luận chẩn đoán..."
             />
           </div>
 
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-700">
-              Li�n k?t b�o c�o
+              Liên kết báo cáo
             </label>
             <input
               type="text"
               value={reportUri}
               onChange={(event) => setReportUri(event.target.value)}
-              placeholder="https://... hoac duong dan noi bo"
+              placeholder="https://... hoặc đường dẫn nội bộ"
               className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
             />
           </div>
@@ -1066,10 +1055,10 @@ export default function ClinicalOrdersPage() {
                 resetImagingReportForm();
               }}
             >
-              ��ng
+              Đóng
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "�ang luu..." : "Luu b�o c�o"}
+              {isSubmitting ? "Đang lưu..." : "Lưu báo cáo"}
             </Button>
           </div>
         </form>

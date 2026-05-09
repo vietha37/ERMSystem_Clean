@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using ERMSystem.Application.DTOs;
 using ERMSystem.Application.DTOs.Common;
 using ERMSystem.Application.Interfaces;
+using ERMSystem.Application.Authorization;
 using ERMSystem.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -13,7 +14,7 @@ namespace ERMSystem.API.Controllers
 {
     [ApiController]
     [Route("api/admin/users")]
-    [Authorize(Roles = "Admin")]
+    [Authorize]
     public class AdminUsersController : ControllerBase
     {
         private readonly IUserRepository _userRepository;
@@ -28,6 +29,7 @@ namespace ERMSystem.API.Controllers
         }
 
         [HttpGet]
+        [Authorize(Policy = AppPermissions.AdminUsers.Read)]
         public async Task<IActionResult> GetUsers(
             [FromQuery] PaginationRequest request,
             [FromQuery] string? role,
@@ -65,6 +67,7 @@ namespace ERMSystem.API.Controllers
         }
 
         [HttpPost]
+        [Authorize(Policy = AppPermissions.AdminUsers.Create)]
         public async Task<IActionResult> CreateUser([FromBody] CreateAdminUserDto dto, CancellationToken ct)
         {
             if (!ModelState.IsValid)
@@ -99,6 +102,7 @@ namespace ERMSystem.API.Controllers
         }
 
         [HttpPut("{id:guid}")]
+        [Authorize(Policy = AppPermissions.AdminUsers.Update)]
         public async Task<IActionResult> UpdateUser(Guid id, [FromBody] UpdateAdminUserDto dto, CancellationToken ct)
         {
             if (!ModelState.IsValid)
@@ -142,6 +146,7 @@ namespace ERMSystem.API.Controllers
         }
 
         [HttpDelete("{id:guid}")]
+        [Authorize(Policy = AppPermissions.AdminUsers.Delete)]
         public async Task<IActionResult> DeleteUser(Guid id, CancellationToken ct)
         {
             var user = await _userRepository.GetByIdAsync(id, ct);
@@ -161,6 +166,7 @@ namespace ERMSystem.API.Controllers
         }
 
         [HttpPost("sync-hospital-identity")]
+        [Authorize(Policy = AppPermissions.AdminUsers.SyncIdentity)]
         public async Task<IActionResult> SyncHospitalIdentity(CancellationToken ct)
         {
             var internalUsers = await _userRepository.GetInternalUsersAsync(ct);

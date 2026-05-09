@@ -177,7 +177,7 @@ public class HospitalNotificationConsumerService : BackgroundService
 
             var nowUtc = DateTime.UtcNow;
             var templateCode = ResolveTemplateCode(envelope.EventType);
-            var payload = envelope.Payload.Deserialize<AppointmentCreatedNotificationPayload>(JsonOptions);
+            var payload = envelope.Payload.Deserialize<AppointmentNotificationPayload>(JsonOptions);
 
             hospitalDbContext.InboxMessages.Add(new IntegrationInboxMessageEntity
             {
@@ -235,10 +235,17 @@ public class HospitalNotificationConsumerService : BackgroundService
         => eventType switch
         {
             "AppointmentCreated.v1" => "APPOINTMENT_CREATED",
+            "AppointmentUpdated.v1" => "APPOINTMENT_UPDATED",
+            "AppointmentCancelled.v1" => "APPOINTMENT_CANCELLED",
+            "MedicalRecordFinalized.v1" => "MEDICAL_RECORD_FINALIZED",
+            "PrescriptionIssued.v1" => "PRESCRIPTION_ISSUED",
+            "PrescriptionDispensed.v1" => "PRESCRIPTION_DISPENSED",
+            "InvoiceIssued.v1" => "INVOICE_ISSUED",
+            "InvoicePaymentReceived.v1" => "INVOICE_PAYMENT_RECEIVED",
             _ => "GENERIC_NOTIFICATION"
         };
 
-    private static IReadOnlyList<NotificationRecipientTarget> BuildRecipientTargets(AppointmentCreatedNotificationPayload payload)
+    private static IReadOnlyList<NotificationRecipientTarget> BuildRecipientTargets(AppointmentNotificationPayload payload)
     {
         var targets = new List<NotificationRecipientTarget>();
 
@@ -296,7 +303,7 @@ public class HospitalNotificationConsumerService : BackgroundService
         public JsonElement Payload { get; set; }
     }
 
-    private sealed class AppointmentCreatedNotificationPayload
+    private sealed class AppointmentNotificationPayload
     {
         public Guid AppointmentId { get; set; }
         public string AppointmentNumber { get; set; } = string.Empty;
@@ -304,12 +311,22 @@ public class HospitalNotificationConsumerService : BackgroundService
         public string PatientName { get; set; } = string.Empty;
         public string? Phone { get; set; }
         public string? Email { get; set; }
+        public string? MedicalRecordNumber { get; set; }
+        public string? DiagnosisName { get; set; }
         public Guid DoctorProfileId { get; set; }
         public string DoctorName { get; set; } = string.Empty;
         public string SpecialtyName { get; set; } = string.Empty;
         public string ClinicName { get; set; } = string.Empty;
         public DateTime AppointmentStartLocal { get; set; }
-        public DateTime AppointmentEndLocal { get; set; }
+        public DateTime? AppointmentEndLocal { get; set; }
+        public DateTime? FinalizedAtUtc { get; set; }
         public string Channel { get; set; } = string.Empty;
+        public string? PreviousStatus { get; set; }
+        public string? CurrentStatus { get; set; }
+        public string? PrescriptionNumber { get; set; }
+        public string? EncounterNumber { get; set; }
+        public string? InvoiceNumber { get; set; }
+        public decimal? Amount { get; set; }
+        public string? PaymentMethod { get; set; }
     }
 }

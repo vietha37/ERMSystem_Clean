@@ -237,7 +237,7 @@ export default function MedicalRecordsPage() {
         setTotalCount(worklist.totalCount);
         setEligibleAppointments(appointments);
       } catch (error: unknown) {
-        toast.error(getApiErrorMessage(error, "Kh�ng th? t?i d? li?u EMR."));
+        toast.error(getApiErrorMessage(error, "Không thể tải dữ liệu EMR."));
       } finally {
         setIsLoading(false);
         setIsRefreshing(false);
@@ -285,7 +285,7 @@ export default function MedicalRecordsPage() {
       setForm(mapDetailToForm(detail));
       setIsModalOpen(true);
     } catch (error: unknown) {
-      toast.error(getApiErrorMessage(error, "Kh�ng th? t?i chi ti?t encounter."));
+      toast.error(getApiErrorMessage(error, "Không thể tải chi tiết encounter."));
     }
   };
 
@@ -293,12 +293,12 @@ export default function MedicalRecordsPage() {
     event.preventDefault();
 
     if (!editingEncounterId && !form.appointmentId) {
-      toast.error("Can chon lich hen de mo encounter.");
+      toast.error("Cần chọn lịch hẹn để mở encounter.");
       return;
     }
 
     if (!form.diagnosisName.trim()) {
-      toast.error("Ch?n do�n l� tru?ng b?t bu?c.");
+      toast.error("Chẩn đoán là trường bắt buộc.");
       return;
     }
 
@@ -307,10 +307,10 @@ export default function MedicalRecordsPage() {
     try {
       if (editingEncounterId) {
         await hospitalEncounterService.update(editingEncounterId, buildUpdatePayload(form));
-        toast.success("�� c?p nh?t encounter.");
+        toast.success("Đã cập nhật encounter.");
       } else {
         await hospitalEncounterService.create(buildPayload(form));
-        toast.success("�� t?o encounter m?i.");
+        toast.success("Đã tạo encounter mới.");
       }
 
       setIsModalOpen(false);
@@ -318,7 +318,7 @@ export default function MedicalRecordsPage() {
       setForm(EMPTY_FORM);
       await fetchData(true);
     } catch (error: unknown) {
-      toast.error(getApiErrorMessage(error, "Kh�ng th? luu h? so EMR."));
+      toast.error(getApiErrorMessage(error, "Không thể lưu hồ sơ EMR."));
     } finally {
       setIsSubmitting(false);
     }
@@ -333,11 +333,11 @@ export default function MedicalRecordsPage() {
               EMR service
             </p>
             <h1 className="mt-3 text-3xl font-bold text-slate-950">
-              H? so kh�m b?nh hospital
+              Hồ sơ khám bệnh hospital
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">
-              Module nay da chuyen sang hospital database m?i. Moi ho so duoc luu
-              theo mo hinh encounter, gom chan doan, ghi chu lam sang va dau hieu sinh ton.
+              Module này đã chuyển sang hospital database mới. Mỗi hồ sơ được lưu
+              theo mô hình encounter, gồm chẩn đoán, ghi chú lâm sàng và dấu hiệu sinh tồn.
             </p>
           </div>
 
@@ -346,7 +346,7 @@ export default function MedicalRecordsPage() {
               type="text"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Tim theo ma encounter, ma lich, benh nhan..."
+              placeholder="Tìm theo mã encounter, mã lịch, bệnh nhân..."
               className="min-w-[260px] rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
             />
 
@@ -375,26 +375,34 @@ export default function MedicalRecordsPage() {
               ))}
             </select>
 
-            <Button variant="secondary" onClick={() => void fetchData(true)} disabled={isRefreshing}>
-              {isRefreshing ? "�ang l�m m?i..." : "Lam moi"}
+            <Button
+              variant="secondary"
+              onClick={() => void fetchData(true)}
+              disabled={isRefreshing}
+            >
+              {isRefreshing ? "Đang làm mới..." : "Làm mới"}
             </Button>
-            <Button onClick={openCreateModal}>Mo encounter</Button>
+            <Button onClick={openCreateModal}>Mở encounter</Button>
           </div>
         </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <MetricCard label="�ang kh�m" value={metrics.InProgress} tone="amber" />
-        <MetricCard label="�� ch?t h? so" value={metrics.Finalized} tone="emerald" />
-        <MetricCard label="Lich cho mo encounter" value={availableAppointments.length} tone="cyan" />
+        <MetricCard label="Đang khám" value={metrics.InProgress} tone="amber" />
+        <MetricCard label="Đã chốt hồ sơ" value={metrics.Finalized} tone="emerald" />
+        <MetricCard
+          label="Lịch chờ mở encounter"
+          value={availableAppointments.length}
+          tone="cyan"
+        />
       </div>
 
       <Card className="overflow-hidden border border-slate-100 p-0 shadow-sm">
         <div className="flex flex-col gap-3 border-b border-slate-100 px-6 py-5 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Danh sach encounter</h2>
+            <h2 className="text-lg font-bold text-slate-900">Danh sách encounter</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Hien thi {startItem}-{endItem} / {totalCount} ho so.
+              Hiển thị {startItem}-{endItem} / {totalCount} hồ sơ.
             </p>
           </div>
 
@@ -406,33 +414,47 @@ export default function MedicalRecordsPage() {
             }}
             className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
           >
-            <option value={10}>10 dong / trang</option>
-            <option value={20}>20 dong / trang</option>
-            <option value={50}>50 dong / trang</option>
+            <option value={10}>10 dòng / trang</option>
+            <option value={20}>20 dòng / trang</option>
+            <option value={50}>50 dòng / trang</option>
           </select>
         </div>
 
         {isLoading ? (
           <div className="flex flex-col items-center justify-center p-16">
             <div className="mb-4 h-10 w-10 animate-spin rounded-full border-4 border-emerald-100 border-t-emerald-600" />
-            <p className="text-sm font-medium text-slate-500">�ang t?i ho so EMR...</p>
+            <p className="text-sm font-medium text-slate-500">Đang tải hồ sơ EMR...</p>
           </div>
         ) : encounters.length === 0 ? (
           <div className="p-16 text-center text-sm text-slate-500">
-            Chua co encounter nao khop bo loc hien tai.
+            Chưa có encounter nào khớp bộ lọc hiện tại.
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-[1260px] w-full border-collapse text-left">
               <thead>
                 <tr className="bg-slate-50">
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Encounter</th>
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">B?nh nh�n</th>
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Bac si</th>
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Ch?n do�n</th>
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Trang thai</th>
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Cap nhat</th>
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Tac vu</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
+                    Encounter
+                  </th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
+                    Bệnh nhân
+                  </th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
+                    Bác sĩ
+                  </th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
+                    Chẩn đoán
+                  </th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
+                    Trạng thái
+                  </th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
+                    Cập nhật
+                  </th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
+                    Tác vụ
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -442,12 +464,14 @@ export default function MedicalRecordsPage() {
                     className="border-t border-slate-100 align-top transition-colors hover:bg-emerald-50/30"
                   >
                     <td className="px-6 py-4">
-                      <div className="font-semibold text-slate-900">{encounter.encounterNumber}</div>
+                      <div className="font-semibold text-slate-900">
+                        {encounter.encounterNumber}
+                      </div>
                       <div className="mt-1 text-sm text-slate-500">
                         {encounter.appointmentNumber || "--"}
                       </div>
                       <div className="mt-1 text-xs text-slate-400">
-                        Bat dau: {formatDateTime(encounter.startedAtLocal)}
+                        Bắt đầu: {formatDateTime(encounter.startedAtLocal)}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -456,7 +480,7 @@ export default function MedicalRecordsPage() {
                         {encounter.medicalRecordNumber}
                       </div>
                       <div className="mt-1 text-xs text-slate-400">
-                        Lich kham: {formatDateTime(encounter.appointmentStartLocal)}
+                        Lịch khám: {formatDateTime(encounter.appointmentStartLocal)}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -469,7 +493,7 @@ export default function MedicalRecordsPage() {
                         {encounter.primaryDiagnosisName || "--"}
                       </div>
                       <div className="mt-1 max-w-[280px] text-sm text-slate-500">
-                        {encounter.summary || "Chua co tom tat benh an."}
+                        {encounter.summary || "Chưa có tóm tắt bệnh án."}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -484,7 +508,7 @@ export default function MedicalRecordsPage() {
                     <td className="px-6 py-4 text-sm text-slate-600">
                       <div>{formatDateTime(encounter.updatedAtLocal)}</div>
                       <div className="mt-1 text-xs text-slate-400">
-                        Ket thuc: {formatDateTime(encounter.endedAtLocal)}
+                        Kết thúc: {formatDateTime(encounter.endedAtLocal)}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -493,7 +517,7 @@ export default function MedicalRecordsPage() {
                         className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
                         onClick={() => void openEditModal(encounter.encounterId)}
                       >
-                        Cap nhat
+                        Cập nhật
                       </Button>
                     </td>
                   </tr>
@@ -509,15 +533,19 @@ export default function MedicalRecordsPage() {
           </p>
 
           <div className="flex items-center gap-2">
-            <Button variant="secondary" onClick={() => setPageNumber(1)} disabled={pageNumber === 1}>
-              Dau
+            <Button
+              variant="secondary"
+              onClick={() => setPageNumber(1)}
+              disabled={pageNumber === 1}
+            >
+              Đầu
             </Button>
             <Button
               variant="secondary"
               onClick={() => setPageNumber((current) => current - 1)}
               disabled={pageNumber === 1}
             >
-              Truoc
+              Trước
             </Button>
             <Button
               variant="secondary"
@@ -537,24 +565,27 @@ export default function MedicalRecordsPage() {
           setEditingEncounterId(null);
           setForm(EMPTY_FORM);
         }}
-        title={editingEncounterId ? "Cap nhat encounter" : "Mo encounter moi"}
+        title={editingEncounterId ? "Cập nhật encounter" : "Mở encounter mới"}
       >
         <form onSubmit={handleSubmit} className="space-y-5">
           {!editingEncounterId && (
             <div>
               <label className="mb-2 block text-sm font-medium text-slate-700">
-                L?ch h?n da check-in / da hoan thanh
+                Lịch hẹn đã check-in / đã hoàn thành
               </label>
               <select
                 value={form.appointmentId}
-                onChange={(event) => setForm((current) => ({ ...current, appointmentId: event.target.value }))}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, appointmentId: event.target.value }))
+                }
                 className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
                 required
               >
-                <option value="">-- Chon lich hen --</option>
+                <option value="">-- Chọn lịch hẹn --</option>
                 {availableAppointments.map((appointment) => (
                   <option key={appointment.appointmentId} value={appointment.appointmentId}>
-                    {appointment.appointmentNumber} - {appointment.patientName} - {formatDateTime(appointment.appointmentStartLocal)}
+                    {appointment.appointmentNumber} - {appointment.patientName} -{" "}
+                    {formatDateTime(appointment.appointmentStartLocal)}
                   </option>
                 ))}
               </select>
@@ -563,43 +594,57 @@ export default function MedicalRecordsPage() {
 
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Ch?n do�n</label>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Chẩn đoán
+              </label>
               <input
                 type="text"
                 value={form.diagnosisName}
-                onChange={(event) => setForm((current) => ({ ...current, diagnosisName: event.target.value }))}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, diagnosisName: event.target.value }))
+                }
                 className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
-                placeholder="Vi du: Tang huyet ap"
+                placeholder="Ví dụ: Tăng huyết áp"
                 required
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Ma chan doan</label>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Mã chẩn đoán
+              </label>
               <input
                 type="text"
                 value={form.diagnosisCode}
-                onChange={(event) => setForm((current) => ({ ...current, diagnosisCode: event.target.value }))}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, diagnosisCode: event.target.value }))
+                }
                 className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
-                placeholder="ICD-10 neu co"
+                placeholder="ICD-10 nếu có"
               />
             </div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Loai chan doan</label>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Loại chẩn đoán
+              </label>
               <input
                 type="text"
                 value={form.diagnosisType}
-                onChange={(event) => setForm((current) => ({ ...current, diagnosisType: event.target.value }))}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, diagnosisType: event.target.value }))
+                }
                 className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
                 placeholder="Working / Final"
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Trang thai encounter</label>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Trạng thái encounter
+              </label>
               <select
                 value={form.encounterStatus}
                 onChange={(event) =>
@@ -610,55 +655,99 @@ export default function MedicalRecordsPage() {
                 }
                 className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
               >
-                <option value="InProgress">�ang kh�m</option>
-                <option value="Finalized">�� ch?t h? so</option>
+                <option value="InProgress">Đang khám</option>
+                <option value="Finalized">Đã chốt hồ sơ</option>
               </select>
             </div>
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">Tom tat ho so</label>
+            <label className="mb-2 block text-sm font-medium text-slate-700">
+              Tóm tắt hồ sơ
+            </label>
             <textarea
               rows={3}
               value={form.summary}
-              onChange={(event) => setForm((current) => ({ ...current, summary: event.target.value }))}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, summary: event.target.value }))
+              }
               className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
-              placeholder="Tom tat dien bien va ket luan chung"
+              placeholder="Tóm tắt diễn biến và kết luận chung"
             />
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             <TextAreaField
-              label="Trieu chung / Subjective"
+              label="Triệu chứng / Subjective"
               value={form.subjective}
               onChange={(value) => setForm((current) => ({ ...current, subjective: value }))}
             />
             <TextAreaField
-              label="Kham thuc the / Objective"
+              label="Khám thực thể / Objective"
               value={form.objective}
               onChange={(value) => setForm((current) => ({ ...current, objective: value }))}
             />
             <TextAreaField
-              label="Danh gia / Assessment"
+              label="Đánh giá / Assessment"
               value={form.assessment}
               onChange={(value) => setForm((current) => ({ ...current, assessment: value }))}
             />
             <TextAreaField
-              label="Huong dieu tri / Care plan"
+              label="Hướng điều trị / Care plan"
               value={form.carePlan}
               onChange={(value) => setForm((current) => ({ ...current, carePlan: value }))}
             />
           </div>
 
           <div className="grid gap-4 md:grid-cols-4">
-            <NumberField label="Chieu cao (cm)" value={form.heightCm} onChange={(value) => setForm((current) => ({ ...current, heightCm: value }))} />
-            <NumberField label="Can nang (kg)" value={form.weightKg} onChange={(value) => setForm((current) => ({ ...current, weightKg: value }))} />
-            <NumberField label="Nhiet do (C)" value={form.temperatureC} onChange={(value) => setForm((current) => ({ ...current, temperatureC: value }))} />
-            <NumberField label="Mach" value={form.pulseRate} onChange={(value) => setForm((current) => ({ ...current, pulseRate: value }))} />
-            <NumberField label="Nhip tho" value={form.respiratoryRate} onChange={(value) => setForm((current) => ({ ...current, respiratoryRate: value }))} />
-            <NumberField label="HA tam thu" value={form.systolicBp} onChange={(value) => setForm((current) => ({ ...current, systolicBp: value }))} />
-            <NumberField label="HA tam truong" value={form.diastolicBp} onChange={(value) => setForm((current) => ({ ...current, diastolicBp: value }))} />
-            <NumberField label="SpO2 (%)" value={form.oxygenSaturation} onChange={(value) => setForm((current) => ({ ...current, oxygenSaturation: value }))} />
+            <NumberField
+              label="Chiều cao (cm)"
+              value={form.heightCm}
+              onChange={(value) => setForm((current) => ({ ...current, heightCm: value }))}
+            />
+            <NumberField
+              label="Cân nặng (kg)"
+              value={form.weightKg}
+              onChange={(value) => setForm((current) => ({ ...current, weightKg: value }))}
+            />
+            <NumberField
+              label="Nhiệt độ (C)"
+              value={form.temperatureC}
+              onChange={(value) =>
+                setForm((current) => ({ ...current, temperatureC: value }))
+              }
+            />
+            <NumberField
+              label="Mạch"
+              value={form.pulseRate}
+              onChange={(value) => setForm((current) => ({ ...current, pulseRate: value }))}
+            />
+            <NumberField
+              label="Nhịp thở"
+              value={form.respiratoryRate}
+              onChange={(value) =>
+                setForm((current) => ({ ...current, respiratoryRate: value }))
+              }
+            />
+            <NumberField
+              label="HA tâm thu"
+              value={form.systolicBp}
+              onChange={(value) => setForm((current) => ({ ...current, systolicBp: value }))}
+            />
+            <NumberField
+              label="HA tâm trương"
+              value={form.diastolicBp}
+              onChange={(value) =>
+                setForm((current) => ({ ...current, diastolicBp: value }))
+              }
+            />
+            <NumberField
+              label="SpO2 (%)"
+              value={form.oxygenSaturation}
+              onChange={(value) =>
+                setForm((current) => ({ ...current, oxygenSaturation: value }))
+              }
+            />
           </div>
 
           <div className="flex justify-end gap-3 border-t border-slate-100 pt-5">
@@ -671,10 +760,14 @@ export default function MedicalRecordsPage() {
                 setForm(EMPTY_FORM);
               }}
             >
-              ��ng
+              Đóng
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "�ang luu..." : editingEncounterId ? "C?p nh?t h? so" : "T?o h? so"}
+              {isSubmitting
+                ? "Đang lưu..."
+                : editingEncounterId
+                  ? "Cập nhật hồ sơ"
+                  : "Tạo hồ sơ"}
             </Button>
           </div>
         </form>

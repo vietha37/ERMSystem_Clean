@@ -206,6 +206,8 @@ public class HospitalEncounterRepository : IHospitalEncounterRepository
             PatientId = appointment.PatientId,
             PatientName = appointment.Patient.FullName,
             MedicalRecordNumber = appointment.Patient.MedicalRecordNumber,
+            PatientPhone = appointment.Patient.Phone,
+            PatientEmail = appointment.Patient.Email,
             DoctorProfileId = appointment.DoctorProfileId,
             DoctorName = appointment.DoctorProfile.StaffProfile.FullName,
             SpecialtyName = appointment.DoctorProfile.Specialty.Name,

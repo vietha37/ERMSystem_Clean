@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using ERMSystem.Application.DTOs;
 using ERMSystem.Application.Interfaces;
+using ERMSystem.Application.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,7 +9,7 @@ namespace ERMSystem.API.Controllers;
 
 [ApiController]
 [Route("api/hospital-encounters")]
-[Authorize(Roles = "Admin,Doctor,Receptionist")]
+[Authorize]
 public class HospitalEncountersController : ControllerBase
 {
     private readonly IHospitalEncounterService _hospitalEncounterService;
@@ -19,6 +20,7 @@ public class HospitalEncountersController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Policy = AppPermissions.HospitalEncounters.Read)]
     public async Task<IActionResult> GetWorklist(
         [FromQuery] HospitalEncounterWorklistRequestDto request,
         CancellationToken ct)
@@ -28,6 +30,7 @@ public class HospitalEncountersController : ControllerBase
     }
 
     [HttpGet("eligible-appointments")]
+    [Authorize(Policy = AppPermissions.HospitalEncounters.Read)]
     public async Task<IActionResult> GetEligibleAppointments(CancellationToken ct)
     {
         var result = await _hospitalEncounterService.GetEligibleAppointmentsAsync(ct);
@@ -35,6 +38,7 @@ public class HospitalEncountersController : ControllerBase
     }
 
     [HttpGet("{encounterId:guid}")]
+    [Authorize(Policy = AppPermissions.HospitalEncounters.Read)]
     public async Task<IActionResult> GetById(Guid encounterId, CancellationToken ct)
     {
         var result = await _hospitalEncounterService.GetByIdAsync(encounterId, ct);
@@ -47,6 +51,7 @@ public class HospitalEncountersController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = AppPermissions.HospitalEncounters.Create)]
     public async Task<IActionResult> Create(
         [FromBody] CreateHospitalEncounterDto request,
         CancellationToken ct)
@@ -76,6 +81,7 @@ public class HospitalEncountersController : ControllerBase
     }
 
     [HttpPut("{encounterId:guid}")]
+    [Authorize(Policy = AppPermissions.HospitalEncounters.Update)]
     public async Task<IActionResult> Update(
         Guid encounterId,
         [FromBody] UpdateHospitalEncounterDto request,

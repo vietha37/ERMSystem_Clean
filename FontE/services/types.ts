@@ -161,6 +161,97 @@ export type HospitalPatientPortalOverview = {
   profile: HospitalPatientPortalProfile;
   upcomingAppointments: HospitalPatientPortalAppointment[];
   recentAppointments: HospitalPatientPortalAppointment[];
+  recentPrescriptions: HospitalPatientPortalPrescription[];
+  recentClinicalOrders: HospitalPatientPortalClinicalOrder[];
+  recentInvoices: HospitalPatientPortalInvoice[];
+};
+
+export type HospitalPatientPortalPrescriptionItem = {
+  prescriptionItemId: Id;
+  medicineName: string;
+  drugCode: string;
+  doseInstruction: string;
+  route?: string | null;
+  frequency?: string | null;
+  durationDays?: number | null;
+  quantity: number;
+  unit?: string | null;
+};
+
+export type HospitalPatientPortalPrescription = {
+  prescriptionId: Id;
+  prescriptionNumber: string;
+  status: string;
+  encounterNumber: string;
+  doctorName: string;
+  specialtyName: string;
+  primaryDiagnosisName?: string | null;
+  totalItems: number;
+  createdAtLocal: string;
+  dispensedAtLocal?: string | null;
+  notes?: string | null;
+  items: HospitalPatientPortalPrescriptionItem[];
+};
+
+export type HospitalPatientPortalLabResultItem = {
+  resultItemId: Id;
+  analyteName: string;
+  resultValue?: string | null;
+  unit?: string | null;
+  referenceRange?: string | null;
+  abnormalFlag?: string | null;
+};
+
+export type HospitalPatientPortalClinicalOrder = {
+  clinicalOrderId: Id;
+  orderNumber: string;
+  category: string;
+  status: string;
+  encounterNumber: string;
+  serviceName: string;
+  serviceCode: string;
+  doctorName: string;
+  requestedAtLocal: string;
+  completedAtLocal?: string | null;
+  summaryText?: string | null;
+  findings?: string | null;
+  impression?: string | null;
+  reportUri?: string | null;
+  resultItems: HospitalPatientPortalLabResultItem[];
+};
+
+export type HospitalPatientPortalInvoiceItem = {
+  invoiceItemId: Id;
+  itemType: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  lineAmount: number;
+};
+
+export type HospitalPatientPortalPayment = {
+  paymentId: Id;
+  paymentReference: string;
+  paymentMethod: string;
+  amount: number;
+  paymentStatus: string;
+  paidAtLocal?: string | null;
+};
+
+export type HospitalPatientPortalInvoice = {
+  invoiceId: Id;
+  invoiceNumber: string;
+  invoiceStatus: string;
+  encounterNumber?: string | null;
+  totalAmount: number;
+  paidAmount: number;
+  balanceAmount: number;
+  totalItems: number;
+  totalPayments: number;
+  issuedAtLocal: string;
+  dueAtLocal?: string | null;
+  items: HospitalPatientPortalInvoiceItem[];
+  payments: HospitalPatientPortalPayment[];
 };
 
 export type HospitalAppointmentWorklistStatus =

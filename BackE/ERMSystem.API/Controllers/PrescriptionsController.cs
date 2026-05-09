@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ERMSystem.Application.Authorization;
 using ERMSystem.Application.DTOs;
 using ERMSystem.Application.DTOs.Common;
 using ERMSystem.Application.Interfaces;
@@ -28,6 +29,7 @@ namespace ERMSystem.API.Controllers
 
         // GET: api/prescriptions
         [HttpGet]
+        [Authorize(Policy = AppPermissions.Prescriptions.Read)]
         public async Task<IActionResult> GetAllPrescriptions([FromQuery] PaginationRequest request, CancellationToken ct)
         {
             var result = await _prescriptionService.GetAllPrescriptionsAsync(request, ct);
@@ -36,6 +38,7 @@ namespace ERMSystem.API.Controllers
 
         // GET: api/prescriptions/{id}
         [HttpGet("{id}")]
+        [Authorize(Policy = AppPermissions.Prescriptions.Read)]
         public async Task<IActionResult> GetPrescriptionById(Guid id, CancellationToken ct)
         {
             var prescription = await _prescriptionService.GetPrescriptionByIdAsync(id, ct);
@@ -46,6 +49,7 @@ namespace ERMSystem.API.Controllers
 
         // GET: api/prescriptions/by-medicalrecord/{medicalRecordId}
         [HttpGet("by-medicalrecord/{medicalRecordId}")]
+        [Authorize(Policy = AppPermissions.Prescriptions.Read)]
         public async Task<IActionResult> GetByMedicalRecord(Guid medicalRecordId, CancellationToken ct)
         {
             var prescription = await _prescriptionService.GetPrescriptionByMedicalRecordIdAsync(medicalRecordId, ct);
@@ -56,6 +60,7 @@ namespace ERMSystem.API.Controllers
 
         // POST: api/prescriptions
         [HttpPost]
+        [Authorize(Policy = AppPermissions.Prescriptions.Create)]
         public async Task<IActionResult> CreatePrescription([FromBody] CreatePrescriptionDto createPrescriptionDto, CancellationToken ct)
         {
             if (!ModelState.IsValid)
@@ -78,7 +83,7 @@ namespace ERMSystem.API.Controllers
 
         // DELETE: api/prescriptions/{id}
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin,Receptionist")]
+        [Authorize(Policy = AppPermissions.Prescriptions.Delete)]
         public async Task<IActionResult> DeletePrescription(Guid id, CancellationToken ct)
         {
             try
@@ -95,6 +100,7 @@ namespace ERMSystem.API.Controllers
 
         // POST: api/prescriptions/{id}/items
         [HttpPost("{id}/items")]
+        [Authorize(Policy = AppPermissions.Prescriptions.Update)]
         public async Task<IActionResult> AddItem(Guid id, [FromBody] AddPrescriptionItemDto addPrescriptionItemDto, CancellationToken ct)
         {
             if (!ModelState.IsValid)
@@ -113,6 +119,7 @@ namespace ERMSystem.API.Controllers
 
         // DELETE: api/prescriptions/{id}/items/{itemId}
         [HttpDelete("{id}/items/{itemId}")]
+        [Authorize(Policy = AppPermissions.Prescriptions.Update)]
         public async Task<IActionResult> RemoveItem(Guid id, Guid itemId, CancellationToken ct)
         {
             try

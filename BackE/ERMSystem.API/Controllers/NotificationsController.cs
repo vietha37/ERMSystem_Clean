@@ -3,6 +3,7 @@ using System.Linq;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
+using ERMSystem.Application.Authorization;
 using ERMSystem.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -23,6 +24,7 @@ namespace ERMSystem.API.Controllers
 
         // GET: api/notifications/today
         [HttpGet("today")]
+        [Authorize(Policy = AppPermissions.Notifications.Read)]
         public async Task<IActionResult> GetToday(CancellationToken ct)
         {
             var role = User.FindFirstValue(ClaimTypes.Role);

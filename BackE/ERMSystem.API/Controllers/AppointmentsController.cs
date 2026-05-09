@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ERMSystem.Application.Authorization;
 using ERMSystem.Application.DTOs;
 using ERMSystem.Application.DTOs.Common;
 using ERMSystem.Application.Interfaces;
@@ -24,6 +25,7 @@ namespace ERMSystem.API.Controllers
 
         // GET: api/appointments
         [HttpGet]
+        [Authorize(Policy = AppPermissions.Appointments.Read)]
         public async Task<IActionResult> GetAllAppointments([FromQuery] PaginationRequest request, CancellationToken ct)
         {
             var result = await _appointmentService.GetAllAppointmentsAsync(request, ct);
@@ -32,6 +34,7 @@ namespace ERMSystem.API.Controllers
 
         // GET: api/appointments/{id}
         [HttpGet("{id}")]
+        [Authorize(Policy = AppPermissions.Appointments.Read)]
         public async Task<IActionResult> GetAppointmentById(Guid id, CancellationToken ct)
         {
             var appointment = await _appointmentService.GetAppointmentByIdAsync(id, ct);
@@ -42,6 +45,7 @@ namespace ERMSystem.API.Controllers
 
         // POST: api/appointments
         [HttpPost]
+        [Authorize(Policy = AppPermissions.Appointments.Create)]
         public async Task<IActionResult> CreateAppointment([FromBody] CreateAppointmentDto createAppointmentDto, CancellationToken ct)
         {
             if (!ModelState.IsValid)
@@ -64,6 +68,7 @@ namespace ERMSystem.API.Controllers
 
         // PUT: api/appointments/{id}
         [HttpPut("{id}")]
+        [Authorize(Policy = AppPermissions.Appointments.Update)]
         public async Task<IActionResult> UpdateAppointment(Guid id, [FromBody] UpdateAppointmentDto updateAppointmentDto, CancellationToken ct)
         {
             if (!ModelState.IsValid)
@@ -87,6 +92,7 @@ namespace ERMSystem.API.Controllers
 
         // DELETE: api/appointments/{id}
         [HttpDelete("{id}")]
+        [Authorize(Policy = AppPermissions.Appointments.Delete)]
         public async Task<IActionResult> DeleteAppointment(Guid id, CancellationToken ct)
         {
             try

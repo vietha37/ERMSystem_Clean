@@ -3,6 +3,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
+using ERMSystem.Application.Authorization;
 using ERMSystem.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -11,7 +12,7 @@ namespace ERMSystem.API.Controllers
 {
     [ApiController]
     [Route("api/hospital-patient-portal")]
-    [Authorize(Roles = "Patient")]
+    [Authorize(Policy = AppPermissions.HospitalPortal.View)]
     public class HospitalPatientPortalController : ControllerBase
     {
         private readonly IHospitalPatientPortalService _service;

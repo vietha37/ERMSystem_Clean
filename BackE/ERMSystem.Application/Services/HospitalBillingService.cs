@@ -102,6 +102,8 @@ public class HospitalBillingService : IHospitalBillingService
                 encounter.PatientId,
                 encounter.PatientName,
                 encounter.MedicalRecordNumber,
+                phone = encounter.PatientPhone,
+                email = encounter.PatientEmail,
                 subtotal,
                 discount,
                 insurance,
@@ -186,6 +188,11 @@ public class HospitalBillingService : IHospitalBillingService
             {
                 invoiceId,
                 invoice.InvoiceNumber,
+                patientId = invoice.PatientId,
+                patientName = invoice.PatientName,
+                medicalRecordNumber = invoice.MedicalRecordNumber,
+                phone = invoice.PatientPhone,
+                email = invoice.PatientEmail,
                 amount = request.Amount,
                 paymentMethod = request.PaymentMethod.Trim(),
                 paymentReference = string.IsNullOrWhiteSpace(request.PaymentReference)

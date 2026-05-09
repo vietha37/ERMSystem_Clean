@@ -1,4 +1,5 @@
 using ERMSystem.Application.Interfaces;
+using ERMSystem.Application.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -6,7 +7,7 @@ namespace ERMSystem.API.Controllers;
 
 [ApiController]
 [Route("api/hospital-notification-deliveries")]
-[Authorize(Roles = "Admin,Receptionist")]
+[Authorize]
 public class HospitalNotificationDeliveriesController : ControllerBase
 {
     private readonly IHospitalNotificationDeliveryService _service;
@@ -17,6 +18,7 @@ public class HospitalNotificationDeliveriesController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Policy = AppPermissions.HospitalNotifications.Read)]
     public async Task<IActionResult> GetDeliveries(
         [FromQuery] string? status,
         [FromQuery] int pageNumber = 1,
@@ -28,6 +30,7 @@ public class HospitalNotificationDeliveriesController : ControllerBase
     }
 
     [HttpPost("{deliveryId:guid}/retry")]
+    [Authorize(Policy = AppPermissions.HospitalNotifications.Retry)]
     public async Task<IActionResult> RetryDelivery(Guid deliveryId, CancellationToken ct)
     {
         var retried = await _service.RetryDeliveryAsync(deliveryId, ct);

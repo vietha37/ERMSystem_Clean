@@ -10,5 +10,8 @@ namespace ERMSystem.Application.Interfaces
         Task<AuthResponseDto> LoginAsync(LoginDto loginDto);
         Task<AuthResponseDto> RefreshTokenAsync(RefreshTokenRequestDto request);
         Task LogoutAsync(RefreshTokenRequestDto request);
+        Task LogoutAllAsync(Guid userId);
+        Task ForgotPasswordAsync(ForgotPasswordRequestDto request);
+        Task ResetPasswordAsync(ResetPasswordRequestDto request);
     }
 }

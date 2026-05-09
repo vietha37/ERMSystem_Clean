@@ -242,7 +242,48 @@ namespace ERMSystem.Application.Services
                 throw new InvalidOperationException("Lich hen da huy khong the chuyen sang trang thai khac.");
             }
 
+            var previousStatus = appointment.Status;
             await _hospitalAppointmentRepository.UpdateStatusAsync(appointmentId, normalizedStatus, ct);
+
+            if (!string.Equals(previousStatus, normalizedStatus, StringComparison.OrdinalIgnoreCase))
+            {
+                var appointmentStartLocal = ConvertUtcToClinicLocal(appointment.AppointmentStartUtc);
+                var appointmentEndLocal = appointment.AppointmentEndUtc.HasValue
+                    ? ConvertUtcToClinicLocal(appointment.AppointmentEndUtc.Value)
+                    : (DateTime?)null;
+                var eventType = string.Equals(normalizedStatus, "Cancelled", StringComparison.OrdinalIgnoreCase)
+                    ? "AppointmentCancelled.v1"
+                    : "AppointmentUpdated.v1";
+
+                await _hospitalAppointmentRepository.AddOutboxMessageAsync(new HospitalOutboxMessageCreateCommand
+                {
+                    OutboxMessageId = Guid.NewGuid(),
+                    AggregateType = "Appointment",
+                    AggregateId = appointment.AppointmentId,
+                    EventType = eventType,
+                    PayloadJson = JsonSerializer.Serialize(new
+                    {
+                        appointmentId = appointment.AppointmentId,
+                        appointmentNumber = appointment.AppointmentNumber,
+                        patientId = appointment.PatientId,
+                        patientName = appointment.PatientName,
+                        phone = appointment.PatientPhone,
+                        email = appointment.PatientEmail,
+                        doctorProfileId = appointment.DoctorProfileId,
+                        doctorName = appointment.DoctorName,
+                        specialtyName = appointment.SpecialtyName,
+                        clinicName = appointment.ClinicName,
+                        appointmentStartLocal,
+                        appointmentEndLocal,
+                        previousStatus,
+                        currentStatus = normalizedStatus,
+                        channel = appointment.BookingChannel
+                    }, JsonOptions),
+                    Status = "Pending",
+                    AvailableAtUtc = DateTime.UtcNow
+                }, ct);
+            }
+
             await _hospitalAppointmentRepository.SaveChangesAsync(ct);
 
             var refreshed = await _hospitalAppointmentRepository.GetAppointmentAggregateAsync(appointmentId, ct);

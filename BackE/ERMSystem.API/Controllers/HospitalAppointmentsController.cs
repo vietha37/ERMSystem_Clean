@@ -1,5 +1,6 @@
 using ERMSystem.Application.DTOs;
 using ERMSystem.Application.Interfaces;
+using ERMSystem.Application.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -17,7 +18,7 @@ public class HospitalAppointmentsController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = "Admin,Doctor,Receptionist")]
+    [Authorize(Policy = AppPermissions.Appointments.Read)]
     public async Task<IActionResult> GetWorklist(
         [FromQuery] HospitalAppointmentWorklistRequestDto request,
         CancellationToken ct)
@@ -27,7 +28,7 @@ public class HospitalAppointmentsController : ControllerBase
     }
 
     [HttpPost("{appointmentId:guid}/check-in")]
-    [Authorize(Roles = "Admin,Receptionist")]
+    [Authorize(Policy = AppPermissions.Appointments.CheckIn)]
     public async Task<IActionResult> CheckIn(
         Guid appointmentId,
         [FromBody] HospitalAppointmentCheckInRequestDto request,
@@ -50,7 +51,7 @@ public class HospitalAppointmentsController : ControllerBase
     }
 
     [HttpPost("{appointmentId:guid}/status")]
-    [Authorize(Roles = "Admin,Doctor,Receptionist")]
+    [Authorize(Policy = AppPermissions.Appointments.StatusUpdate)]
     public async Task<IActionResult> UpdateStatus(
         Guid appointmentId,
         [FromBody] HospitalAppointmentStatusUpdateRequestDto request,

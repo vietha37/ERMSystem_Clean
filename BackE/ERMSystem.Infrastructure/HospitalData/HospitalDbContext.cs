@@ -325,7 +325,7 @@ public class HospitalDbContext : DbContext
 
         modelBuilder.Entity<HospitalLabOrderEntity>()
             .HasOne(x => x.OrderHeader)
-            .WithMany()
+            .WithMany(x => x.LabOrders)
             .HasForeignKey(x => x.OrderHeaderId)
             .OnDelete(DeleteBehavior.Restrict);
 
@@ -349,7 +349,7 @@ public class HospitalDbContext : DbContext
 
         modelBuilder.Entity<HospitalImagingOrderEntity>()
             .HasOne(x => x.OrderHeader)
-            .WithMany()
+            .WithMany(x => x.ImagingOrders)
             .HasForeignKey(x => x.OrderHeaderId)
             .OnDelete(DeleteBehavior.Restrict);
 
@@ -409,7 +409,7 @@ public class HospitalDbContext : DbContext
 
         modelBuilder.Entity<HospitalPrescriptionEntity>()
             .HasOne(x => x.OrderHeader)
-            .WithMany()
+            .WithMany(x => x.Prescriptions)
             .HasForeignKey(x => x.OrderHeaderId)
             .OnDelete(DeleteBehavior.Restrict);
 

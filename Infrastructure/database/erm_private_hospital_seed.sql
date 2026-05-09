@@ -299,3 +299,118 @@ WHERE NOT EXISTS (
     WHERE TemplateCode = 'APPOINTMENT_CREATED' AND ChannelCode = 'SMS'
 );
 GO
+
+INSERT INTO notification.NotificationTemplates (Id, TemplateCode, ChannelCode, SubjectTemplate, BodyTemplate, IsActive)
+SELECT NEWID(), 'APPOINTMENT_UPDATED', 'Email', N'Cap nhat lich hen {{AppointmentNumber}}', N'Xin chao {{PatientName}}, lich hen {{AppointmentNumber}} voi {{DoctorName}} tai {{ClinicName}} da duoc cap nhat sang trang thai {{CurrentStatus}}. Thoi gian hen: {{AppointmentStartLocal}}.', 1
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM notification.NotificationTemplates
+    WHERE TemplateCode = 'APPOINTMENT_UPDATED' AND ChannelCode = 'Email'
+);
+
+INSERT INTO notification.NotificationTemplates (Id, TemplateCode, ChannelCode, SubjectTemplate, BodyTemplate, IsActive)
+SELECT NEWID(), 'APPOINTMENT_UPDATED', 'SMS', NULL, N'Lich hen {{AppointmentNumber}} da duoc cap nhat trang thai {{CurrentStatus}}. Thoi gian hen: {{AppointmentStartLocal}}.', 1
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM notification.NotificationTemplates
+    WHERE TemplateCode = 'APPOINTMENT_UPDATED' AND ChannelCode = 'SMS'
+);
+
+INSERT INTO notification.NotificationTemplates (Id, TemplateCode, ChannelCode, SubjectTemplate, BodyTemplate, IsActive)
+SELECT NEWID(), 'APPOINTMENT_CANCELLED', 'Email', N'Huy lich hen {{AppointmentNumber}}', N'Xin chao {{PatientName}}, lich hen {{AppointmentNumber}} voi {{DoctorName}} tai {{ClinicName}} da duoc huy. Neu can, vui long dat lich moi.', 1
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM notification.NotificationTemplates
+    WHERE TemplateCode = 'APPOINTMENT_CANCELLED' AND ChannelCode = 'Email'
+);
+
+INSERT INTO notification.NotificationTemplates (Id, TemplateCode, ChannelCode, SubjectTemplate, BodyTemplate, IsActive)
+SELECT NEWID(), 'APPOINTMENT_CANCELLED', 'SMS', NULL, N'Lich hen {{AppointmentNumber}} da duoc huy. Vui long dat lich moi neu can.', 1
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM notification.NotificationTemplates
+    WHERE TemplateCode = 'APPOINTMENT_CANCELLED' AND ChannelCode = 'SMS'
+);
+GO
+
+INSERT INTO notification.NotificationTemplates (Id, TemplateCode, ChannelCode, SubjectTemplate, BodyTemplate, IsActive)
+SELECT NEWID(), 'MEDICAL_RECORD_FINALIZED', 'Email', N'Ho so kham {{AppointmentNumber}} da hoan tat', N'Xin chao {{PatientName}}, ho so kham {{AppointmentNumber}} voi chan doan {{DiagnosisName}} da duoc bac si {{DoctorName}} hoan tat.', 1
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM notification.NotificationTemplates
+    WHERE TemplateCode = 'MEDICAL_RECORD_FINALIZED' AND ChannelCode = 'Email'
+);
+
+INSERT INTO notification.NotificationTemplates (Id, TemplateCode, ChannelCode, SubjectTemplate, BodyTemplate, IsActive)
+SELECT NEWID(), 'MEDICAL_RECORD_FINALIZED', 'SMS', NULL, N'Ho so kham {{AppointmentNumber}} da hoan tat voi chan doan {{DiagnosisName}}.', 1
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM notification.NotificationTemplates
+    WHERE TemplateCode = 'MEDICAL_RECORD_FINALIZED' AND ChannelCode = 'SMS'
+);
+GO
+
+INSERT INTO notification.NotificationTemplates (Id, TemplateCode, ChannelCode, SubjectTemplate, BodyTemplate, IsActive)
+SELECT NEWID(), 'PRESCRIPTION_ISSUED', 'Email', N'Toa thuoc {{PrescriptionNumber}} da duoc phat hanh', N'Xin chao {{PatientName}}, toa thuoc {{PrescriptionNumber}} cho lan kham {{EncounterNumber}} da duoc phat hanh.', 1
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM notification.NotificationTemplates
+    WHERE TemplateCode = 'PRESCRIPTION_ISSUED' AND ChannelCode = 'Email'
+);
+
+INSERT INTO notification.NotificationTemplates (Id, TemplateCode, ChannelCode, SubjectTemplate, BodyTemplate, IsActive)
+SELECT NEWID(), 'PRESCRIPTION_ISSUED', 'SMS', NULL, N'Toa thuoc {{PrescriptionNumber}} da duoc phat hanh cho lan kham {{EncounterNumber}}.', 1
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM notification.NotificationTemplates
+    WHERE TemplateCode = 'PRESCRIPTION_ISSUED' AND ChannelCode = 'SMS'
+);
+
+INSERT INTO notification.NotificationTemplates (Id, TemplateCode, ChannelCode, SubjectTemplate, BodyTemplate, IsActive)
+SELECT NEWID(), 'PRESCRIPTION_DISPENSED', 'Email', N'Toa thuoc {{PrescriptionNumber}} da duoc cap', N'Xin chao {{PatientName}}, toa thuoc {{PrescriptionNumber}} da duoc cap thuoc thanh cong.', 1
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM notification.NotificationTemplates
+    WHERE TemplateCode = 'PRESCRIPTION_DISPENSED' AND ChannelCode = 'Email'
+);
+
+INSERT INTO notification.NotificationTemplates (Id, TemplateCode, ChannelCode, SubjectTemplate, BodyTemplate, IsActive)
+SELECT NEWID(), 'PRESCRIPTION_DISPENSED', 'SMS', NULL, N'Toa thuoc {{PrescriptionNumber}} da duoc cap thuoc.', 1
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM notification.NotificationTemplates
+    WHERE TemplateCode = 'PRESCRIPTION_DISPENSED' AND ChannelCode = 'SMS'
+);
+
+INSERT INTO notification.NotificationTemplates (Id, TemplateCode, ChannelCode, SubjectTemplate, BodyTemplate, IsActive)
+SELECT NEWID(), 'INVOICE_ISSUED', 'Email', N'Hoa don {{InvoiceNumber}} da duoc lap', N'Xin chao {{PatientName}}, hoa don {{InvoiceNumber}} da duoc lap cho ho so cua quy khach.', 1
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM notification.NotificationTemplates
+    WHERE TemplateCode = 'INVOICE_ISSUED' AND ChannelCode = 'Email'
+);
+
+INSERT INTO notification.NotificationTemplates (Id, TemplateCode, ChannelCode, SubjectTemplate, BodyTemplate, IsActive)
+SELECT NEWID(), 'INVOICE_ISSUED', 'SMS', NULL, N'Hoa don {{InvoiceNumber}} da duoc lap. Vui long kiem tra de thanh toan.', 1
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM notification.NotificationTemplates
+    WHERE TemplateCode = 'INVOICE_ISSUED' AND ChannelCode = 'SMS'
+);
+
+INSERT INTO notification.NotificationTemplates (Id, TemplateCode, ChannelCode, SubjectTemplate, BodyTemplate, IsActive)
+SELECT NEWID(), 'INVOICE_PAYMENT_RECEIVED', 'Email', N'Da ghi nhan thanh toan cho hoa don {{InvoiceNumber}}', N'Xin chao {{PatientName}}, he thong da ghi nhan thanh toan {{Amount}} cho hoa don {{InvoiceNumber}} qua {{PaymentMethod}}.', 1
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM notification.NotificationTemplates
+    WHERE TemplateCode = 'INVOICE_PAYMENT_RECEIVED' AND ChannelCode = 'Email'
+);
+
+INSERT INTO notification.NotificationTemplates (Id, TemplateCode, ChannelCode, SubjectTemplate, BodyTemplate, IsActive)
+SELECT NEWID(), 'INVOICE_PAYMENT_RECEIVED', 'SMS', NULL, N'Da ghi nhan thanh toan {{Amount}} cho hoa don {{InvoiceNumber}}.', 1
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM notification.NotificationTemplates
+    WHERE TemplateCode = 'INVOICE_PAYMENT_RECEIVED' AND ChannelCode = 'SMS'
+);
+GO

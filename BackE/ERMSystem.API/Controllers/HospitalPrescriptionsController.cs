@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using ERMSystem.Application.DTOs;
+using ERMSystem.Application.Authorization;
 using ERMSystem.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,7 +9,7 @@ namespace ERMSystem.API.Controllers;
 
 [ApiController]
 [Route("api/hospital-prescriptions")]
-[Authorize(Roles = "Admin,Doctor,Receptionist")]
+[Authorize]
 public class HospitalPrescriptionsController : ControllerBase
 {
     private readonly IHospitalPrescriptionService _hospitalPrescriptionService;
@@ -19,6 +20,7 @@ public class HospitalPrescriptionsController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Policy = AppPermissions.Prescriptions.Read)]
     public async Task<IActionResult> GetWorklist(
         [FromQuery] HospitalPrescriptionWorklistRequestDto request,
         CancellationToken ct)
@@ -28,6 +30,7 @@ public class HospitalPrescriptionsController : ControllerBase
     }
 
     [HttpGet("eligible-encounters")]
+    [Authorize(Policy = AppPermissions.Prescriptions.Read)]
     public async Task<IActionResult> GetEligibleEncounters(CancellationToken ct)
     {
         var result = await _hospitalPrescriptionService.GetEligibleEncountersAsync(ct);
@@ -35,6 +38,7 @@ public class HospitalPrescriptionsController : ControllerBase
     }
 
     [HttpGet("medicine-catalog")]
+    [Authorize(Policy = AppPermissions.Prescriptions.Read)]
     public async Task<IActionResult> GetMedicineCatalog(CancellationToken ct)
     {
         var result = await _hospitalPrescriptionService.GetMedicineCatalogAsync(ct);
@@ -42,6 +46,7 @@ public class HospitalPrescriptionsController : ControllerBase
     }
 
     [HttpGet("{prescriptionId:guid}")]
+    [Authorize(Policy = AppPermissions.Prescriptions.Read)]
     public async Task<IActionResult> GetById(Guid prescriptionId, CancellationToken ct)
     {
         var result = await _hospitalPrescriptionService.GetByIdAsync(prescriptionId, ct);
@@ -54,6 +59,7 @@ public class HospitalPrescriptionsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = AppPermissions.Prescriptions.Create)]
     public async Task<IActionResult> Create(
         [FromBody] CreateHospitalPrescriptionDto request,
         CancellationToken ct)
@@ -83,7 +89,7 @@ public class HospitalPrescriptionsController : ControllerBase
     }
 
     [HttpDelete("{prescriptionId:guid}")]
-    [Authorize(Roles = "Admin,Receptionist")]
+    [Authorize(Policy = AppPermissions.Prescriptions.Delete)]
     public async Task<IActionResult> Delete(Guid prescriptionId, CancellationToken ct)
     {
         try
@@ -102,7 +108,7 @@ public class HospitalPrescriptionsController : ControllerBase
     }
 
     [HttpPost("{prescriptionId:guid}/dispense")]
-    [Authorize(Roles = "Admin,Receptionist")]
+    [Authorize(Policy = AppPermissions.Prescriptions.Dispense)]
     public async Task<IActionResult> Dispense(
         Guid prescriptionId,
         [FromBody] DispenseHospitalPrescriptionDto request,

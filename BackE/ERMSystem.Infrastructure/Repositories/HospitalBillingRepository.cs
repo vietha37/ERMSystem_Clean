@@ -29,6 +29,7 @@ public class HospitalBillingRepository : IHospitalBillingRepository
             .Include(x => x.Encounter)
             .Include(x => x.InvoiceItems)
             .Include(x => x.Payments)
+            .AsSplitQuery()
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(request.InvoiceStatus))
@@ -74,6 +75,7 @@ public class HospitalBillingRepository : IHospitalBillingRepository
             .Include(x => x.InvoiceItems)
             .Include(x => x.Payments)
                 .ThenInclude(x => x.ReceivedByUser)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(x => x.Id == invoiceId, ct);
 
         return invoice == null ? null : MapAggregate(invoice);
@@ -252,6 +254,8 @@ public class HospitalBillingRepository : IHospitalBillingRepository
             PatientId = encounter.PatientId,
             PatientName = encounter.Patient.FullName,
             MedicalRecordNumber = encounter.Patient.MedicalRecordNumber,
+            PatientPhone = encounter.Patient.Phone,
+            PatientEmail = encounter.Patient.Email,
             DoctorName = encounter.DoctorProfile.StaffProfile.FullName,
             SpecialtyName = encounter.DoctorProfile.Specialty.Name,
             ClinicName = encounter.Clinic.Name,

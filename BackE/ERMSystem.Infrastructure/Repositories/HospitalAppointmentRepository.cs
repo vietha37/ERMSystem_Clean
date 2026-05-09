@@ -236,6 +236,7 @@ public class HospitalAppointmentRepository : IHospitalAppointmentRepository
             PatientName = entity.Patient.FullName,
             MedicalRecordNumber = entity.Patient.MedicalRecordNumber,
             PatientPhone = entity.Patient.Phone,
+            PatientEmail = entity.Patient.Email,
             DoctorProfileId = entity.DoctorProfileId,
             DoctorName = entity.DoctorProfile.StaffProfile.FullName,
             SpecialtyName = entity.DoctorProfile.Specialty.Name,

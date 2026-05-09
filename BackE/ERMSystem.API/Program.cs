@@ -1,14 +1,21 @@
+using ERMSystem.Application.Authorization;
 using ERMSystem.Application.Interfaces;
 using ERMSystem.Application.Services;
+using ERMSystem.API.HealthChecks;
 using ERMSystem.Infrastructure.Repositories;
 using ERMSystem.Infrastructure.Services;
 using ERMSystem.Infrastructure.Messaging;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 using System.Text;
+using System.Text.Json;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -60,7 +67,52 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    foreach (var permission in AppPermissions.All)
+    {
+        options.AddPolicy(permission, policy =>
+            policy.RequireClaim(AppPermissions.ClaimType, permission));
+    }
+});
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddHealthChecks()
+    .AddCheck<DependencyReadinessHealthCheck>("dependency-readiness", tags: ["ready"]);
+
+var authPermitLimit = builder.Configuration.GetValue<int?>("Security:AuthRateLimit:PermitLimit") ?? 12;
+var authWindowSeconds = builder.Configuration.GetValue<int?>("Security:AuthRateLimit:WindowSeconds") ?? 60;
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, token) =>
+    {
+        context.HttpContext.Response.ContentType = "application/json";
+        var payload = JsonSerializer.Serialize(new
+        {
+            error = "rate_limit_exceeded",
+            message = "Too many authentication requests. Please retry later."
+        });
+
+        await context.HttpContext.Response.WriteAsync(payload, token);
+    };
+
+    options.AddPolicy("auth-fixed-window", httpContext =>
+    {
+        var remoteIp = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: remoteIp,
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = authPermitLimit,
+                Window = TimeSpan.FromSeconds(authWindowSeconds),
+                QueueLimit = 0,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                AutoReplenishment = true
+            });
+    });
+});
 
 // ── OpenAPI / Swagger ─────────────────────────────────────────────────────────
 builder.Services.AddOpenApi();
@@ -68,6 +120,7 @@ builder.Services.AddOpenApi();
 // ── DI – Auth ─────────────────────────────────────────────────────────────────
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddSingleton<IAuthSecurityMonitor, AuthSecurityMonitor>();
 builder.Services.AddScoped<IHospitalIdentityBridgeService, HospitalIdentityBridgeService>();
 
 // ── DI – Patient ──────────────────────────────────────────────────────────────
@@ -197,10 +250,57 @@ else
     app.UseHttpsRedirection();
 }
 
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["Referrer-Policy"] = "no-referrer";
+    context.Response.Headers["X-Permitted-Cross-Domain-Policies"] = "none";
+    context.Response.Headers["Cross-Origin-Opener-Policy"] = "same-origin";
+
+    if (!app.Environment.IsDevelopment())
+    {
+        context.Response.Headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
+    }
+
+    await next();
+});
+
 app.UseCors("AllowFrontend");
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.MapGet("/health/live", () => Results.Ok(new
+{
+    status = "ok",
+    service = "ERMSystem.API",
+    utcNow = DateTime.UtcNow
+})).AllowAnonymous();
+
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = registration => registration.Tags.Contains("ready"),
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        var payload = JsonSerializer.Serialize(new
+        {
+            status = report.Status.ToString(),
+            checks = report.Entries.ToDictionary(
+                entry => entry.Key,
+                entry => new
+                {
+                    status = entry.Value.Status.ToString(),
+                    description = entry.Value.Description,
+                    data = entry.Value.Data
+                })
+        });
+
+        await context.Response.WriteAsync(payload);
+    }
+}).AllowAnonymous();
 
 app.MapControllers();
 

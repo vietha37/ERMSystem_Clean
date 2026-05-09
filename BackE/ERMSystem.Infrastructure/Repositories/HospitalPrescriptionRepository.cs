@@ -47,6 +47,7 @@ public class HospitalPrescriptionRepository : IHospitalPrescriptionRepository
             .Include(x => x.PrescriptionItems)
             .Include(x => x.Dispensings)
                 .ThenInclude(x => x.DispensedByUser)
+            .AsSplitQuery()
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(request.Status))
@@ -120,6 +121,7 @@ public class HospitalPrescriptionRepository : IHospitalPrescriptionRepository
     public async Task<HospitalPrescriptionAggregateSnapshot?> GetByIdAsync(Guid prescriptionId, CancellationToken ct = default)
     {
         var entity = await _hospitalDbContext.Prescriptions
+            .AsNoTracking()
             .Include(x => x.OrderHeader)
                 .ThenInclude(x => x.Encounter)
                     .ThenInclude(x => x.Patient)
@@ -141,6 +143,7 @@ public class HospitalPrescriptionRepository : IHospitalPrescriptionRepository
                 .ThenInclude(x => x.Medicine)
             .Include(x => x.Dispensings)
                 .ThenInclude(x => x.DispensedByUser)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(x => x.Id == prescriptionId, ct);
 
         if (entity == null)
@@ -175,6 +178,8 @@ public class HospitalPrescriptionRepository : IHospitalPrescriptionRepository
             PatientId = encounter.PatientId,
             PatientName = encounter.Patient.FullName,
             MedicalRecordNumber = encounter.Patient.MedicalRecordNumber,
+            PatientPhone = encounter.Patient.Phone,
+            PatientEmail = encounter.Patient.Email,
             DoctorProfileId = encounter.DoctorProfileId,
             DoctorName = encounter.DoctorProfile.StaffProfile.FullName,
             SpecialtyName = encounter.DoctorProfile.Specialty.Name,
@@ -311,6 +316,8 @@ public class HospitalPrescriptionRepository : IHospitalPrescriptionRepository
             PatientId = encounter.PatientId,
             PatientName = encounter.Patient.FullName,
             MedicalRecordNumber = encounter.Patient.MedicalRecordNumber,
+            PatientPhone = encounter.Patient.Phone,
+            PatientEmail = encounter.Patient.Email,
             DoctorProfileId = encounter.DoctorProfileId,
             DoctorName = encounter.DoctorProfile.StaffProfile.FullName,
             SpecialtyName = encounter.DoctorProfile.Specialty.Name,

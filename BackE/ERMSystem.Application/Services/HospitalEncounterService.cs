@@ -292,6 +292,8 @@ public class HospitalEncounterService : IHospitalEncounterService
                 appointment.PatientId,
                 appointment.PatientName,
                 appointment.MedicalRecordNumber,
+                phone = appointment.PatientPhone,
+                email = appointment.PatientEmail,
                 appointment.DoctorProfileId,
                 appointment.DoctorName,
                 appointment.SpecialtyName,

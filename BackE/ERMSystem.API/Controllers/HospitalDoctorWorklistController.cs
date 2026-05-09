@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using ERMSystem.Application.DTOs;
+using ERMSystem.Application.Authorization;
 using ERMSystem.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,7 +9,7 @@ namespace ERMSystem.API.Controllers;
 
 [ApiController]
 [Route("api/hospital-doctor-worklist")]
-[Authorize(Roles = "Admin,Doctor,Receptionist")]
+[Authorize(Policy = AppPermissions.HospitalDoctorWorklist.Read)]
 public class HospitalDoctorWorklistController : ControllerBase
 {
     private readonly IHospitalDoctorWorklistService _hospitalDoctorWorklistService;

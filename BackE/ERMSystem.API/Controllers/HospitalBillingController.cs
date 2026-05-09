@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using ERMSystem.Application.DTOs;
 using ERMSystem.Application.Interfaces;
+using ERMSystem.Application.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,7 +9,7 @@ namespace ERMSystem.API.Controllers;
 
 [ApiController]
 [Route("api/hospital-billing")]
-[Authorize(Roles = "Admin,Receptionist")]
+[Authorize]
 public class HospitalBillingController : ControllerBase
 {
     private readonly IHospitalBillingService _hospitalBillingService;
@@ -19,6 +20,7 @@ public class HospitalBillingController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Policy = AppPermissions.HospitalBilling.Read)]
     public async Task<IActionResult> GetWorklist([FromQuery] HospitalInvoiceWorklistRequestDto request, CancellationToken ct)
     {
         var result = await _hospitalBillingService.GetWorklistAsync(request, ct);
@@ -26,6 +28,7 @@ public class HospitalBillingController : ControllerBase
     }
 
     [HttpGet("eligible-encounters")]
+    [Authorize(Policy = AppPermissions.HospitalBilling.Read)]
     public async Task<IActionResult> GetEligibleEncounters(CancellationToken ct)
     {
         var result = await _hospitalBillingService.GetEligibleEncountersAsync(ct);
@@ -33,6 +36,7 @@ public class HospitalBillingController : ControllerBase
     }
 
     [HttpGet("{invoiceId:guid}")]
+    [Authorize(Policy = AppPermissions.HospitalBilling.Read)]
     public async Task<IActionResult> GetById(Guid invoiceId, CancellationToken ct)
     {
         var result = await _hospitalBillingService.GetByIdAsync(invoiceId, ct);
@@ -45,6 +49,7 @@ public class HospitalBillingController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = AppPermissions.HospitalBilling.Create)]
     public async Task<IActionResult> CreateInvoice([FromBody] CreateHospitalInvoiceDto request, CancellationToken ct)
     {
         if (!ModelState.IsValid)
@@ -68,6 +73,7 @@ public class HospitalBillingController : ControllerBase
     }
 
     [HttpPost("{invoiceId:guid}/payments")]
+    [Authorize(Policy = AppPermissions.HospitalBilling.CollectPayment)]
     public async Task<IActionResult> ReceivePayment(Guid invoiceId, [FromBody] ReceiveHospitalPaymentDto request, CancellationToken ct)
     {
         if (!ModelState.IsValid)

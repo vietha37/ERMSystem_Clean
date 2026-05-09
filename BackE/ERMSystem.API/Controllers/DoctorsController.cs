@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ERMSystem.Application.Authorization;
 using ERMSystem.Application.DTOs;
 using ERMSystem.Application.DTOs.Common;
 using ERMSystem.Application.Interfaces;
@@ -24,6 +25,7 @@ namespace ERMSystem.API.Controllers
 
         // GET: api/doctors
         [HttpGet]
+        [Authorize(Policy = AppPermissions.Doctors.Read)]
         public async Task<IActionResult> GetAllDoctors([FromQuery] PaginationRequest request, CancellationToken ct)
         {
             var result = await _doctorService.GetAllDoctorsAsync(request, ct);
@@ -32,6 +34,7 @@ namespace ERMSystem.API.Controllers
 
         // GET: api/doctors/{id}
         [HttpGet("{id}")]
+        [Authorize(Policy = AppPermissions.Doctors.Read)]
         public async Task<IActionResult> GetDoctorById(Guid id, CancellationToken ct)
         {
             var doctor = await _doctorService.GetDoctorByIdAsync(id, ct);
@@ -42,6 +45,7 @@ namespace ERMSystem.API.Controllers
 
         // POST: api/doctors
         [HttpPost]
+        [Authorize(Policy = AppPermissions.Doctors.Create)]
         public async Task<IActionResult> CreateDoctor([FromBody] CreateDoctorDto createDoctorDto, CancellationToken ct)
         {
             if (!ModelState.IsValid)
@@ -53,6 +57,7 @@ namespace ERMSystem.API.Controllers
 
         // PUT: api/doctors/{id}
         [HttpPut("{id}")]
+        [Authorize(Policy = AppPermissions.Doctors.Update)]
         public async Task<IActionResult> UpdateDoctor(Guid id, [FromBody] UpdateDoctorDto updateDoctorDto, CancellationToken ct)
         {
             if (!ModelState.IsValid)
@@ -72,6 +77,7 @@ namespace ERMSystem.API.Controllers
 
         // DELETE: api/doctors/{id}
         [HttpDelete("{id}")]
+        [Authorize(Policy = AppPermissions.Doctors.Delete)]
         public async Task<IActionResult> DeleteDoctor(Guid id, CancellationToken ct)
         {
             try

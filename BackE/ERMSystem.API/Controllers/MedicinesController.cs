@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ERMSystem.Application.Authorization;
 using ERMSystem.Application.DTOs;
 using ERMSystem.Application.DTOs.Common;
 using ERMSystem.Application.Interfaces;
@@ -24,6 +25,7 @@ namespace ERMSystem.API.Controllers
 
         // GET: api/medicines
         [HttpGet]
+        [Authorize(Policy = AppPermissions.Medicines.Read)]
         public async Task<IActionResult> GetAllMedicines([FromQuery] PaginationRequest request, CancellationToken ct)
         {
             var result = await _medicineService.GetAllMedicinesAsync(request, ct);
@@ -32,6 +34,7 @@ namespace ERMSystem.API.Controllers
 
         // GET: api/medicines/{id}
         [HttpGet("{id}")]
+        [Authorize(Policy = AppPermissions.Medicines.Read)]
         public async Task<IActionResult> GetMedicineById(Guid id, CancellationToken ct)
         {
             var medicine = await _medicineService.GetMedicineByIdAsync(id, ct);
@@ -42,6 +45,7 @@ namespace ERMSystem.API.Controllers
 
         // POST: api/medicines
         [HttpPost]
+        [Authorize(Policy = AppPermissions.Medicines.Create)]
         public async Task<IActionResult> CreateMedicine([FromBody] CreateMedicineDto createMedicineDto, CancellationToken ct)
         {
             if (!ModelState.IsValid)
@@ -53,6 +57,7 @@ namespace ERMSystem.API.Controllers
 
         // PUT: api/medicines/{id}
         [HttpPut("{id}")]
+        [Authorize(Policy = AppPermissions.Medicines.Update)]
         public async Task<IActionResult> UpdateMedicine(Guid id, [FromBody] UpdateMedicineDto updateMedicineDto, CancellationToken ct)
         {
             if (!ModelState.IsValid)
@@ -72,6 +77,7 @@ namespace ERMSystem.API.Controllers
 
         // DELETE: api/medicines/{id}
         [HttpDelete("{id}")]
+        [Authorize(Policy = AppPermissions.Medicines.Delete)]
         public async Task<IActionResult> DeleteMedicine(Guid id, CancellationToken ct)
         {
             try

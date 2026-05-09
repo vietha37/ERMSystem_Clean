@@ -8,7 +8,11 @@ import { AppointmentNotification } from "@/services/types";
 function formatTime(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "--:--";
-  return date.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", hour12: false });
+  return date.toLocaleTimeString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
 }
 
 function computeUnreadCount(
@@ -46,7 +50,8 @@ export function Header() {
       return;
     }
 
-    const raw = typeof window !== "undefined" ? window.localStorage.getItem(storageKey) : null;
+    const raw =
+      typeof window !== "undefined" ? window.localStorage.getItem(storageKey) : null;
     const parsed = raw ? Number(raw) : 0;
     setLastViewedAt(Number.isFinite(parsed) ? parsed : 0);
   }, [isAuthenticated, storageKey]);
@@ -59,6 +64,7 @@ export function Header() {
     }
 
     let isCancelled = false;
+
     const fetchNotifications = async () => {
       setIsLoadingNotifications(true);
       try {
@@ -82,8 +88,11 @@ export function Header() {
       }
     };
 
-    fetchNotifications();
-    const timer = setInterval(fetchNotifications, 30000);
+    void fetchNotifications();
+    const timer = setInterval(() => {
+      void fetchNotifications();
+    }, 30000);
+
     return () => {
       isCancelled = true;
       clearInterval(timer);
@@ -131,66 +140,77 @@ export function Header() {
   };
 
   const title = useMemo(() => {
-    if (role === "Admin") return "Tat ca lich kham hom nay";
-    if (role === "Doctor") return "Lich kham cua ban hom nay";
-    return "Thong bao hom nay";
+    if (role === "Admin") return "Tất cả lịch khám hôm nay";
+    if (role === "Doctor") return "Lịch khám của bạn hôm nay";
+    return "Thông báo hôm nay";
   }, [role]);
 
   return (
-    <header className="relative z-20 h-20 bg-white/90 backdrop-blur-md border-b border-gray-100 flex items-center justify-between px-8 shadow-sm transition-all duration-300">
+    <header className="relative z-20 flex h-20 items-center justify-between border-b border-gray-100 bg-white/90 px-8 shadow-sm backdrop-blur-md transition-all duration-300">
       <div>
-        <h2 className="text-xl font-bold text-gray-800 tracking-tight">Trung tam dieu hanh</h2>
-        <p className="text-sm text-gray-500 font-medium">
-          {role ?? "Nguoi dung"}{username ? ` - ${username}` : ""}
+        <h2 className="text-xl font-bold tracking-tight text-gray-800">
+          Trung tâm điều hành
+        </h2>
+        <p className="text-sm font-medium text-gray-500">
+          {role ?? "Người dùng"}
+          {username ? ` - ${username}` : ""}
         </p>
       </div>
+
       <div className="flex items-center gap-5">
         <button
           onClick={logout}
-          className="text-sm font-bold text-red-500 bg-red-50 hover:bg-red-100 hover:text-red-600 px-4 py-2 rounded-xl transition-colors shadow-sm"
+          className="rounded-xl bg-red-50 px-4 py-2 text-sm font-bold text-red-500 shadow-sm transition-colors hover:bg-red-100 hover:text-red-600"
         >
-          Dang xuat
+          Đăng xuất
         </button>
 
         <div ref={notificationRef} className="relative z-30">
           <button
             onClick={handleToggleNotifications}
-            className="p-2.5 rounded-full bg-gray-50 hover:bg-gray-100 relative text-gray-500 transition-colors shadow-sm"
-            aria-label="Thong bao"
+            className="relative rounded-full bg-gray-50 p-2.5 text-gray-500 shadow-sm transition-colors hover:bg-gray-100"
+            aria-label="Thông báo"
           >
             <span className="text-xl">🔔</span>
             {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center border-2 border-white">
+              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-blue-600 px-1 text-[10px] font-bold text-white">
                 {unreadCount > 99 ? "99+" : unreadCount}
               </span>
             )}
           </button>
 
           {isOpen && (
-            <div className="absolute right-0 mt-2 w-[380px] max-h-[420px] overflow-auto rounded-2xl border border-gray-200 bg-white shadow-xl z-40">
-              <div className="sticky top-0 bg-white border-b border-gray-100 px-4 py-3">
+            <div className="absolute right-0 z-40 mt-2 max-h-[420px] w-[380px] overflow-auto rounded-2xl border border-gray-200 bg-white shadow-xl">
+              <div className="sticky top-0 border-b border-gray-100 bg-white px-4 py-3">
                 <p className="text-sm font-bold text-gray-800">{title}</p>
-                <p className="text-xs text-gray-500">
-                  {unreadCount} thong bao
-                </p>
+                <p className="text-xs text-gray-500">{unreadCount} thông báo mới</p>
               </div>
 
               {isLoadingNotifications ? (
-                <div className="p-4 text-sm text-gray-500">Dang tai thong bao...</div>
+                <div className="p-4 text-sm text-gray-500">Đang tải thông báo...</div>
               ) : notifications.length === 0 ? (
-                <div className="p-4 text-sm text-gray-500">Khong co lich kham nao hom nay.</div>
+                <div className="p-4 text-sm text-gray-500">
+                  Không có lịch khám nào hôm nay.
+                </div>
               ) : (
                 <ul className="divide-y divide-gray-100">
                   {notifications.map((item) => (
-                    <li key={item.appointmentId} className="px-4 py-3 hover:bg-blue-50/60 transition-colors">
+                    <li
+                      key={item.appointmentId}
+                      className="px-4 py-3 transition-colors hover:bg-blue-50/60"
+                    >
                       <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-semibold text-gray-800 truncate">{item.patientName}</p>
-                        <span className="text-xs font-bold text-blue-700">{formatTime(item.appointmentDate)}</span>
+                        <p className="truncate text-sm font-semibold text-gray-800">
+                          {item.patientName}
+                        </p>
+                        <span className="text-xs font-bold text-blue-700">
+                          {formatTime(item.appointmentDate)}
+                        </span>
                       </div>
-                      <p className="text-xs text-gray-600 mt-1">
-                        Bac si: {item.doctorName}
+                      <p className="mt-1 text-xs text-gray-600">
+                        Bác sĩ: {item.doctorName}
                       </p>
-                      <p className="text-xs text-gray-500 mt-1 truncate">{item.message}</p>
+                      <p className="mt-1 truncate text-xs text-gray-500">{item.message}</p>
                     </li>
                   ))}
                 </ul>
@@ -199,13 +219,17 @@ export function Header() {
           )}
         </div>
 
-        <div className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold shadow-md ring-2 ring-blue-50">
+        <div className="flex cursor-pointer items-center gap-3 transition-opacity hover:opacity-80">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 font-bold text-white shadow-md ring-2 ring-blue-50">
             {(role ?? "U").charAt(0)}
           </div>
-          <div className="hidden md:block text-left">
-            <p className="text-sm font-bold text-gray-800 leading-tight">{role ?? "Nguoi dung"}</p>
-            <p className="text-[11px] text-blue-600 font-bold uppercase tracking-wider">Dang hoat dong</p>
+          <div className="hidden text-left md:block">
+            <p className="text-sm font-bold leading-tight text-gray-800">
+              {role ?? "Người dùng"}
+            </p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-blue-600">
+              Đang hoạt động
+            </p>
           </div>
         </div>
       </div>

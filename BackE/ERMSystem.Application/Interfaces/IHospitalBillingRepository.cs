@@ -27,6 +27,8 @@ public class HospitalInvoiceAggregateSnapshot
     public Guid PatientId { get; set; }
     public string PatientName { get; set; } = string.Empty;
     public string MedicalRecordNumber { get; set; } = string.Empty;
+    public string? PatientPhone { get; set; }
+    public string? PatientEmail { get; set; }
     public Guid? EncounterId { get; set; }
     public string? EncounterNumber { get; set; }
     public string? DoctorName { get; set; }
@@ -75,6 +77,8 @@ public class HospitalBillingEncounterSnapshot
     public Guid PatientId { get; set; }
     public string PatientName { get; set; } = string.Empty;
     public string MedicalRecordNumber { get; set; } = string.Empty;
+    public string? PatientPhone { get; set; }
+    public string? PatientEmail { get; set; }
     public string DoctorName { get; set; } = string.Empty;
     public string SpecialtyName { get; set; } = string.Empty;
     public string ClinicName { get; set; } = string.Empty;

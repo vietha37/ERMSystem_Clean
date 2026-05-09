@@ -9,7 +9,10 @@ import { getApiErrorMessage } from "@/services/error";
 import { hospitalPatientPortalService } from "@/services/hospitalPatientPortalService";
 import {
   HospitalPatientPortalAppointment,
+  HospitalPatientPortalClinicalOrder,
+  HospitalPatientPortalInvoice,
   HospitalPatientPortalOverview,
+  HospitalPatientPortalPrescription,
 } from "@/services/types";
 
 function formatDate(value?: string | null): string {
@@ -38,7 +41,19 @@ function formatDateTime(value?: string | null): string {
   return date.toLocaleString("vi-VN");
 }
 
-function getStatusLabel(status: string): string {
+function formatCurrency(value?: number | null): string {
+  if (value == null || Number.isNaN(value)) {
+    return "--";
+  }
+
+  return value.toLocaleString("vi-VN", {
+    style: "currency",
+    currency: "VND",
+    maximumFractionDigits: 0,
+  });
+}
+
+function getAppointmentStatusLabel(status: string): string {
   switch (status) {
     case "Scheduled":
       return "Đã xếp lịch";
@@ -53,11 +68,89 @@ function getStatusLabel(status: string): string {
   }
 }
 
-function getStatusStyle(status: string): string {
+function getAppointmentStatusStyle(status: string): string {
   switch (status) {
     case "Scheduled":
       return "border border-cyan-200 bg-cyan-50 text-cyan-700";
     case "Completed":
+      return "border border-emerald-200 bg-emerald-50 text-emerald-700";
+    case "Cancelled":
+      return "border border-rose-200 bg-rose-50 text-rose-700";
+    default:
+      return "border border-slate-200 bg-slate-100 text-slate-700";
+  }
+}
+
+function getPrescriptionStatusLabel(status: string): string {
+  switch (status) {
+    case "Issued":
+      return "Đã phát hành";
+    case "Dispensed":
+      return "Đã cấp thuốc";
+    case "Cancelled":
+      return "Đã hủy";
+    default:
+      return status;
+  }
+}
+
+function getPrescriptionStatusStyle(status: string): string {
+  switch (status) {
+    case "Issued":
+      return "border border-cyan-200 bg-cyan-50 text-cyan-700";
+    case "Dispensed":
+      return "border border-emerald-200 bg-emerald-50 text-emerald-700";
+    case "Cancelled":
+      return "border border-rose-200 bg-rose-50 text-rose-700";
+    default:
+      return "border border-slate-200 bg-slate-100 text-slate-700";
+  }
+}
+
+function getClinicalOrderStatusLabel(status: string): string {
+  switch (status) {
+    case "Requested":
+      return "Đang chờ kết quả";
+    case "Completed":
+      return "Đã hoàn thành";
+    default:
+      return status;
+  }
+}
+
+function getClinicalOrderCategoryLabel(category: string): string {
+  switch (category) {
+    case "Lab":
+      return "Xét nghiệm";
+    case "Imaging":
+      return "Chẩn đoán hình ảnh";
+    default:
+      return category;
+  }
+}
+
+function getInvoiceStatusLabel(status: string): string {
+  switch (status) {
+    case "Issued":
+      return "Đã phát hành";
+    case "PartiallyPaid":
+      return "Thanh toán một phần";
+    case "Paid":
+      return "Đã thanh toán";
+    case "Cancelled":
+      return "Đã hủy";
+    default:
+      return status;
+  }
+}
+
+function getInvoiceStatusStyle(status: string): string {
+  switch (status) {
+    case "Issued":
+      return "border border-amber-200 bg-amber-50 text-amber-700";
+    case "PartiallyPaid":
+      return "border border-cyan-200 bg-cyan-50 text-cyan-700";
+    case "Paid":
       return "border border-emerald-200 bg-emerald-50 text-emerald-700";
     case "Cancelled":
       return "border border-rose-200 bg-rose-50 text-rose-700";
@@ -91,6 +184,9 @@ export default function PatientPortalPage() {
   const profile = overview?.profile;
   const upcomingAppointments = overview?.upcomingAppointments ?? [];
   const recentAppointments = overview?.recentAppointments ?? [];
+  const recentPrescriptions = overview?.recentPrescriptions ?? [];
+  const recentClinicalOrders = overview?.recentClinicalOrders ?? [];
+  const recentInvoices = overview?.recentInvoices ?? [];
 
   const stats = {
     totalUpcoming: upcomingAppointments.length,
@@ -112,8 +208,9 @@ export default function PatientPortalPage() {
                   Xin chào {profile?.fullName ?? authService.getUsername() ?? "bạn"}.
                 </h1>
                 <p className="mt-4 max-w-2xl text-base leading-8 text-slate-600">
-                  Theo dõi thông tin hồ sơ và lịch hẹn khám tại bệnh viện tư ngay trên một giao diện riêng cho
-                  người bệnh. Dữ liệu hiện được đọc trực tiếp từ hospital database mới.
+                  Theo dõi hồ sơ cá nhân, lịch hẹn, đơn thuốc, kết quả cận lâm sàng và
+                  hóa đơn ngay trên một giao diện riêng cho người bệnh. Dữ liệu đang đọc
+                  trực tiếp từ hospital database mới.
                 </p>
 
                 <div className="mt-8 grid gap-4 md:grid-cols-3">
@@ -121,7 +218,11 @@ export default function PatientPortalPage() {
                   <StatCard label="Lịch sắp tới" value={stats.totalUpcoming.toString()} />
                   <StatCard
                     label="Lần khám tiếp theo"
-                    value={stats.nextAppointment ? formatDateTime(stats.nextAppointment) : "Chưa có"}
+                    value={
+                      stats.nextAppointment
+                        ? formatDateTime(stats.nextAppointment)
+                        : "Chưa có"
+                    }
                   />
                 </div>
               </div>
@@ -136,13 +237,17 @@ export default function PatientPortalPage() {
                     {profile?.portalStatus ?? "Đang đồng bộ"}
                   </p>
                   <p className="mt-3 text-sm leading-7 text-slate-300">
-                    Kích hoạt từ: {profile?.activatedAtUtc ? formatDateTime(profile.activatedAtUtc) : "--"}
+                    Kích hoạt từ:{" "}
+                    {profile?.activatedAtUtc ? formatDateTime(profile.activatedAtUtc) : "--"}
                   </p>
                 </div>
 
                 <div className="mt-6 space-y-3 text-sm leading-7 text-slate-300">
-                  <p>Portal này được tách riêng khỏi dashboard vận hành nội bộ.</p>
-                  <p>Bước tiếp theo sẽ nối thêm đơn thuốc, kết quả xét nghiệm và thanh toán.</p>
+                  <p>Portal này tách riêng khỏi dashboard vận hành nội bộ.</p>
+                  <p>
+                    Bạn có thể theo dõi nhanh lịch hẹn, đơn thuốc, kết quả xét nghiệm và
+                    trạng thái thanh toán tại đây.
+                  </p>
                 </div>
 
                 <button
@@ -162,7 +267,9 @@ export default function PatientPortalPage() {
                   <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-700">
                     Hồ sơ của tôi
                   </p>
-                  <h2 className="mt-2 text-2xl font-bold text-slate-900">Thông tin cơ bản</h2>
+                  <h2 className="mt-2 text-2xl font-bold text-slate-900">
+                    Thông tin cơ bản
+                  </h2>
                 </div>
                 {isLoading && (
                   <div className="rounded-full bg-cyan-50 px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-cyan-700">
@@ -187,7 +294,11 @@ export default function PatientPortalPage() {
                   <InfoCard label="Giới tính" value={profile.gender} />
                   <InfoCard label="Số điện thoại" value={profile.phone ?? "--"} />
                   <InfoCard label="Email" value={profile.email ?? "--"} />
-                  <InfoCard label="Địa chỉ" value={profile.address ?? "--"} className="md:col-span-2" />
+                  <InfoCard
+                    label="Địa chỉ"
+                    value={profile.address ?? "--"}
+                    className="md:col-span-2"
+                  />
                 </div>
               ) : (
                 <div className="mt-6 rounded-[1.5rem] border border-rose-200 bg-rose-50 p-5 text-sm text-rose-700">
@@ -212,6 +323,12 @@ export default function PatientPortalPage() {
               />
             </section>
           </div>
+
+          <div className="grid gap-6 xl:grid-cols-3">
+            <PrescriptionsPanel prescriptions={recentPrescriptions} />
+            <ClinicalOrdersPanel orders={recentClinicalOrders} />
+            <InvoicesPanel invoices={recentInvoices} />
+          </div>
         </div>
       </div>
     </ProtectedLayout>
@@ -221,7 +338,9 @@ export default function PatientPortalPage() {
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-[1.6rem] border border-cyan-100 bg-cyan-50/70 px-5 py-4">
-      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-700">{label}</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-700">
+        {label}
+      </p>
       <p className="mt-3 text-lg font-bold text-slate-950">{value}</p>
     </div>
   );
@@ -237,8 +356,12 @@ function InfoCard({
   className?: string;
 }) {
   return (
-    <div className={`rounded-[1.4rem] border border-slate-100 bg-slate-50 px-4 py-4 ${className}`.trim()}>
-      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">{label}</p>
+    <div
+      className={`rounded-[1.4rem] border border-slate-100 bg-slate-50 px-4 py-4 ${className}`.trim()}
+    >
+      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
+        {label}
+      </p>
       <p className="mt-2 text-sm font-medium leading-7 text-slate-800">{value}</p>
     </div>
   );
@@ -257,7 +380,9 @@ function AppointmentPanel({
 }) {
   return (
     <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-700">{title}</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-700">
+        {title}
+      </p>
       <p className="mt-2 text-sm leading-7 text-slate-500">{description}</p>
 
       {appointments.length === 0 ? (
@@ -276,21 +401,28 @@ function AppointmentPanel({
                   <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
                     {appointment.appointmentNumber}
                   </p>
-                  <h3 className="mt-2 text-lg font-bold text-slate-900">{appointment.doctorName}</h3>
+                  <h3 className="mt-2 text-lg font-bold text-slate-900">
+                    {appointment.doctorName}
+                  </h3>
                   <p className="mt-1 text-sm text-slate-600">
                     {appointment.specialtyName} / {appointment.clinicName}
                   </p>
                 </div>
 
                 <span
-                  className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${getStatusStyle(appointment.status)}`}
+                  className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${getAppointmentStatusStyle(
+                    appointment.status
+                  )}`}
                 >
-                  {getStatusLabel(appointment.status)}
+                  {getAppointmentStatusLabel(appointment.status)}
                 </span>
               </div>
 
               <div className="mt-4 grid gap-3 md:grid-cols-2">
-                <MiniInfo label="Thời gian" value={formatDateTime(appointment.appointmentStartLocal)} />
+                <MiniInfo
+                  label="Thời gian"
+                  value={formatDateTime(appointment.appointmentStartLocal)}
+                />
                 <MiniInfo label="Kênh đặt lịch" value={appointment.bookingChannel} />
                 <MiniInfo label="Loại lịch hẹn" value={appointment.appointmentType} />
                 <MiniInfo label="Lý do khám" value={appointment.chiefComplaint ?? "--"} />
@@ -303,11 +435,327 @@ function AppointmentPanel({
   );
 }
 
+function PrescriptionsPanel({
+  prescriptions,
+}: {
+  prescriptions: HospitalPatientPortalPrescription[];
+}) {
+  return (
+    <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-700">
+        Đơn thuốc của tôi
+      </p>
+      <p className="mt-2 text-sm leading-7 text-slate-500">
+        Theo dõi các đơn thuốc mới nhất gắn với encounter gần đây.
+      </p>
+
+      {prescriptions.length === 0 ? (
+        <EmptyPanel message="Chưa có đơn thuốc nào trong portal." />
+      ) : (
+        <div className="mt-5 space-y-4">
+          {prescriptions.map((prescription) => (
+            <article
+              key={prescription.prescriptionId}
+              className="rounded-[1.5rem] border border-slate-100 bg-slate-50/80 p-5"
+            >
+              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
+                    {prescription.prescriptionNumber}
+                  </p>
+                  <h3 className="mt-2 text-lg font-bold text-slate-900">
+                    {prescription.primaryDiagnosisName || prescription.encounterNumber}
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-600">
+                    {prescription.doctorName} / {prescription.specialtyName}
+                  </p>
+                </div>
+
+                <span
+                  className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${getPrescriptionStatusStyle(
+                    prescription.status
+                  )}`}
+                >
+                  {getPrescriptionStatusLabel(prescription.status)}
+                </span>
+              </div>
+
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <MiniInfo label="Ngày tạo" value={formatDateTime(prescription.createdAtLocal)} />
+                <MiniInfo
+                  label="Ngày cấp thuốc"
+                  value={formatDateTime(prescription.dispensedAtLocal)}
+                />
+                <MiniInfo label="Encounter" value={prescription.encounterNumber} />
+                <MiniInfo label="Số thuốc" value={`${prescription.totalItems} mục`} />
+              </div>
+
+              {prescription.items.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  {prescription.items.map((item) => (
+                    <div
+                      key={item.prescriptionItemId}
+                      className="rounded-[1.2rem] border border-white bg-white px-4 py-3 shadow-sm"
+                    >
+                      <p className="text-sm font-semibold text-slate-900">
+                        {item.medicineName}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">{item.drugCode}</p>
+                      <p className="mt-2 text-sm text-slate-700">
+                        {item.doseInstruction}
+                        {item.route ? ` / ${item.route}` : ""}
+                        {item.frequency ? ` / ${item.frequency}` : ""}
+                        {item.durationDays ? ` / ${item.durationDays} ngày` : ""}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Số lượng: {item.quantity} {item.unit || ""}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {prescription.notes && (
+                <div className="mt-4 rounded-[1.2rem] border border-cyan-100 bg-cyan-50 px-4 py-3 text-sm text-cyan-900">
+                  {prescription.notes}
+                </div>
+              )}
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ClinicalOrdersPanel({
+  orders,
+}: {
+  orders: HospitalPatientPortalClinicalOrder[];
+}) {
+  return (
+    <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-violet-700">
+        Kết quả cận lâm sàng
+      </p>
+      <p className="mt-2 text-sm leading-7 text-slate-500">
+        Các chỉ định xét nghiệm và chẩn đoán hình ảnh gần nhất của bạn.
+      </p>
+
+      {orders.length === 0 ? (
+        <EmptyPanel message="Chưa có kết quả cận lâm sàng nào trong portal." />
+      ) : (
+        <div className="mt-5 space-y-4">
+          {orders.map((order) => (
+            <article
+              key={order.clinicalOrderId}
+              className="rounded-[1.5rem] border border-slate-100 bg-slate-50/80 p-5"
+            >
+              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
+                    {order.orderNumber}
+                  </p>
+                  <h3 className="mt-2 text-lg font-bold text-slate-900">
+                    {order.serviceName}
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-600">
+                    {getClinicalOrderCategoryLabel(order.category)} / {order.doctorName}
+                  </p>
+                </div>
+
+                <span className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">
+                  {getClinicalOrderStatusLabel(order.status)}
+                </span>
+              </div>
+
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <MiniInfo label="Ngày chỉ định" value={formatDateTime(order.requestedAtLocal)} />
+                <MiniInfo
+                  label="Hoàn thành"
+                  value={formatDateTime(order.completedAtLocal)}
+                />
+                <MiniInfo label="Mã dịch vụ" value={order.serviceCode} />
+                <MiniInfo label="Encounter" value={order.encounterNumber} />
+              </div>
+
+              {order.category === "Lab" && order.resultItems.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  {order.resultItems.map((item) => (
+                    <div
+                      key={item.resultItemId}
+                      className="rounded-[1.2rem] border border-white bg-white px-4 py-3 shadow-sm"
+                    >
+                      <p className="text-sm font-semibold text-slate-900">
+                        {item.analyteName}
+                      </p>
+                      <p className="mt-1 text-sm text-slate-700">
+                        {item.resultValue || "--"} {item.unit || ""}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Tham chiếu: {item.referenceRange || "--"}
+                        {item.abnormalFlag ? ` / Bất thường: ${item.abnormalFlag}` : ""}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {order.category === "Imaging" && (
+                <div className="mt-4 space-y-3">
+                  <RichInfoBlock label="Findings" value={order.findings || order.summaryText} />
+                  <RichInfoBlock label="Impression" value={order.impression} />
+                  {order.reportUri && (
+                    <div className="rounded-[1.2rem] border border-white bg-white px-4 py-3 text-sm shadow-sm">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                        Liên kết báo cáo
+                      </p>
+                      <p className="mt-2 break-all text-slate-700">{order.reportUri}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function InvoicesPanel({ invoices }: { invoices: HospitalPatientPortalInvoice[] }) {
+  return (
+    <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-700">
+        Hóa đơn của tôi
+      </p>
+      <p className="mt-2 text-sm leading-7 text-slate-500">
+        Theo dõi hóa đơn, công nợ và các lần thanh toán gần nhất.
+      </p>
+
+      {invoices.length === 0 ? (
+        <EmptyPanel message="Chưa có hóa đơn nào trong portal." />
+      ) : (
+        <div className="mt-5 space-y-4">
+          {invoices.map((invoice) => (
+            <article
+              key={invoice.invoiceId}
+              className="rounded-[1.5rem] border border-slate-100 bg-slate-50/80 p-5"
+            >
+              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
+                    {invoice.invoiceNumber}
+                  </p>
+                  <h3 className="mt-2 text-lg font-bold text-slate-900">
+                    {formatCurrency(invoice.totalAmount)}
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-600">
+                    {invoice.encounterNumber || "Không gắn encounter"}
+                  </p>
+                </div>
+
+                <span
+                  className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${getInvoiceStatusStyle(
+                    invoice.invoiceStatus
+                  )}`}
+                >
+                  {getInvoiceStatusLabel(invoice.invoiceStatus)}
+                </span>
+              </div>
+
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <MiniInfo label="Ngày phát hành" value={formatDateTime(invoice.issuedAtLocal)} />
+                <MiniInfo label="Hạn thanh toán" value={formatDateTime(invoice.dueAtLocal)} />
+                <MiniInfo label="Đã thanh toán" value={formatCurrency(invoice.paidAmount)} />
+                <MiniInfo label="Còn lại" value={formatCurrency(invoice.balanceAmount)} />
+              </div>
+
+              {invoice.items.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  {invoice.items.map((item) => (
+                    <div
+                      key={item.invoiceItemId}
+                      className="rounded-[1.2rem] border border-white bg-white px-4 py-3 shadow-sm"
+                    >
+                      <p className="text-sm font-semibold text-slate-900">{item.description}</p>
+                      <p className="mt-1 text-xs text-slate-500">{item.itemType}</p>
+                      <p className="mt-2 text-sm text-slate-700">
+                        {item.quantity} x {formatCurrency(item.unitPrice)}
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-emerald-700">
+                        {formatCurrency(item.lineAmount)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {invoice.payments.length > 0 && (
+                <div className="mt-4 rounded-[1.2rem] border border-emerald-100 bg-emerald-50 px-4 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-700">
+                    Lịch sử thanh toán
+                  </p>
+                  <div className="mt-3 space-y-2">
+                    {invoice.payments.map((payment) => (
+                      <div
+                        key={payment.paymentId}
+                        className="flex flex-col gap-1 text-sm text-emerald-950"
+                      >
+                        <span>
+                          {payment.paymentMethod} / {formatCurrency(payment.amount)}
+                        </span>
+                        <span className="text-xs text-emerald-700">
+                          {payment.paymentReference} / {payment.paymentStatus} /{" "}
+                          {formatDateTime(payment.paidAtLocal)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function EmptyPanel({ message }: { message: string }) {
+  return (
+    <div className="mt-5 rounded-[1.4rem] border border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-sm text-slate-500">
+      {message}
+    </div>
+  );
+}
+
 function MiniInfo({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-[1.2rem] border border-white bg-white px-4 py-3 shadow-sm">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">{label}</p>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+        {label}
+      </p>
       <p className="mt-2 text-sm font-medium text-slate-700">{value}</p>
+    </div>
+  );
+}
+
+function RichInfoBlock({
+  label,
+  value,
+}: {
+  label: string;
+  value?: string | null;
+}) {
+  return (
+    <div className="rounded-[1.2rem] border border-white bg-white px-4 py-3 shadow-sm">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+        {label}
+      </p>
+      <p className="mt-2 whitespace-pre-line text-sm leading-7 text-slate-700">
+        {value || "--"}
+      </p>
     </div>
   );
 }
