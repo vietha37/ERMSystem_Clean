@@ -38,7 +38,10 @@ namespace ERMSystem.Infrastructure.Repositories
                     EF.Functions.Like(p.FullName, pattern) ||
                     EF.Functions.Like(p.Phone, pattern) ||
                     EF.Functions.Like(p.Address, pattern) ||
-                    EF.Functions.Like(p.Gender, pattern));
+                    EF.Functions.Like(p.Gender, pattern) ||
+                    (p.EmergencyContactName != null && EF.Functions.Like(p.EmergencyContactName, pattern)) ||
+                    (p.EmergencyContactPhone != null && EF.Functions.Like(p.EmergencyContactPhone, pattern)) ||
+                    (p.EmergencyContactRelationship != null && EF.Functions.Like(p.EmergencyContactRelationship, pattern)));
             }
 
             var totalCount = await query.CountAsync(ct);

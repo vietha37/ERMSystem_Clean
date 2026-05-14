@@ -20,7 +20,7 @@ function Get-CandidateScheduleSlots {
   $candidates = New-Object System.Collections.Generic.List[object]
 
   foreach ($schedule in @($Doctor.schedules | Sort-Object dayOfWeek, startTime)) {
-    for ($offset = 0; $offset -lt 56; $offset++) {
+    for ($offset = 0; $offset -lt 120; $offset++) {
       $candidate = $minDate.AddDays($offset)
       if ([int]$candidate.DayOfWeek -ne [int]$schedule.dayOfWeek) {
         continue
@@ -51,7 +51,7 @@ function Get-CandidateScheduleSlots {
           ClinicName = $schedule.clinicName
         })
 
-        if ($candidates.Count -ge 20) {
+        if ($candidates.Count -ge 80) {
           return $candidates
         }
       }

@@ -2,11 +2,13 @@ using ERMSystem.Application.Authorization;
 using ERMSystem.Application.Interfaces;
 using ERMSystem.Application.Services;
 using ERMSystem.API.HealthChecks;
+using ERMSystem.API.Services;
 using ERMSystem.Infrastructure.Repositories;
 using ERMSystem.Infrastructure.Services;
 using ERMSystem.Infrastructure.Messaging;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -19,6 +21,7 @@ using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.Configure<RequestObservabilityOptions>(builder.Configuration.GetSection("Observability"));
 builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection("RabbitMQ"));
 builder.Services.Configure<OutboxPublisherOptions>(builder.Configuration.GetSection("OutboxPublisher"));
 builder.Services.Configure<NotificationConsumerOptions>(builder.Configuration.GetSection("NotificationConsumer"));
@@ -65,6 +68,34 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidAudience            = builder.Configuration["Jwt:Audience"],
             IssuerSigningKey         = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
         };
+        options.Events = new JwtBearerEvents
+        {
+            OnChallenge = async context =>
+            {
+                context.HandleResponse();
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.ContentType = "application/json";
+
+                var payload = ApiErrorResponseFactory.Create(
+                    context.HttpContext,
+                    "unauthorized",
+                    "Authentication is required to access this resource.");
+
+                await context.Response.WriteAsync(JsonSerializer.Serialize(payload));
+            },
+            OnForbidden = async context =>
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                context.Response.ContentType = "application/json";
+
+                var payload = ApiErrorResponseFactory.Create(
+                    context.HttpContext,
+                    "forbidden",
+                    "You do not have permission to access this resource.");
+
+                await context.Response.WriteAsync(JsonSerializer.Serialize(payload));
+            }
+        };
     });
 
 builder.Services.AddAuthorization(options =>
@@ -89,11 +120,11 @@ builder.Services.AddRateLimiter(options =>
     options.OnRejected = async (context, token) =>
     {
         context.HttpContext.Response.ContentType = "application/json";
-        var payload = JsonSerializer.Serialize(new
-        {
-            error = "rate_limit_exceeded",
-            message = "Too many authentication requests. Please retry later."
-        });
+        var payload = JsonSerializer.Serialize(
+            ApiErrorResponseFactory.Create(
+                context.HttpContext,
+                "rate_limit_exceeded",
+                "Too many authentication requests. Please retry later."));
 
         await context.HttpContext.Response.WriteAsync(payload, token);
     };
@@ -235,7 +266,20 @@ builder.Services.AddCors(options =>
     });
 });
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var payload = ApiErrorResponseFactory.Create(
+                context.HttpContext,
+                "validation_failed",
+                "The request payload is invalid.",
+                ApiErrorResponseFactory.BuildValidationDetails(context.ModelState));
+
+            return new BadRequestObjectResult(payload);
+        };
+    });
 
 var app = builder.Build();
 
@@ -250,6 +294,7 @@ else
     app.UseHttpsRedirection();
 }
 
+app.UseMiddleware<ApiExceptionHandlingMiddleware>();
 app.Use(async (context, next) =>
 {
     context.Response.Headers["X-Content-Type-Options"] = "nosniff";
@@ -266,6 +311,7 @@ app.Use(async (context, next) =>
     await next();
 });
 
+app.UseMiddleware<RequestObservabilityMiddleware>();
 app.UseCors("AllowFrontend");
 app.UseRateLimiter();
 

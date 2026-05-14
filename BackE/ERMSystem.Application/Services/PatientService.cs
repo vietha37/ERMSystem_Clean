@@ -52,6 +52,9 @@ namespace ERMSystem.Application.Services
                 Gender = dto.Gender,
                 Phone = dto.Phone,
                 Address = dto.Address,
+                EmergencyContactName = dto.EmergencyContactName,
+                EmergencyContactPhone = dto.EmergencyContactPhone,
+                EmergencyContactRelationship = dto.EmergencyContactRelationship,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -70,6 +73,9 @@ namespace ERMSystem.Application.Services
             patient.Gender = dto.Gender;
             patient.Phone = dto.Phone;
             patient.Address = dto.Address;
+            patient.EmergencyContactName = dto.EmergencyContactName;
+            patient.EmergencyContactPhone = dto.EmergencyContactPhone;
+            patient.EmergencyContactRelationship = dto.EmergencyContactRelationship;
 
             await _patientRepository.UpdateAsync(patient, ct);
         }
@@ -91,6 +97,9 @@ namespace ERMSystem.Application.Services
             Gender = p.Gender,
             Phone = p.Phone,
             Address = p.Address,
+            EmergencyContactName = p.EmergencyContactName,
+            EmergencyContactPhone = p.EmergencyContactPhone,
+            EmergencyContactRelationship = p.EmergencyContactRelationship,
             CreatedAt = p.CreatedAt
         };
     }

@@ -22,5 +22,14 @@ namespace ERMSystem.Application.DTOs
 
         [Required]
         public string Address { get; set; } = string.Empty;
+
+        [MaxLength(200)]
+        public string? EmergencyContactName { get; set; }
+
+        [Phone]
+        public string? EmergencyContactPhone { get; set; }
+
+        [MaxLength(100)]
+        public string? EmergencyContactRelationship { get; set; }
     }
 }
