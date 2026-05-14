@@ -8,3 +8,6 @@
 # Generated logs and frontend build artifacts
 *.log
 FontE/.next/
+
+# Keep local notes/handoff docs out of git
+*.md
