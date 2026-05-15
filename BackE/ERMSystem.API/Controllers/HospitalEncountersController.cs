@@ -113,6 +113,33 @@ public class HospitalEncountersController : ControllerBase
         }
     }
 
+    [HttpPost("{encounterId:guid}/attachments")]
+    [Authorize(Policy = AppPermissions.HospitalEncounters.Update)]
+    public async Task<IActionResult> AddAttachment(
+        Guid encounterId,
+        [FromBody] AddHospitalEncounterAttachmentDto request,
+        CancellationToken ct)
+    {
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        var result = await _hospitalEncounterService.AddAttachmentAsync(
+            encounterId,
+            request,
+            ResolveActorUserId(),
+            ResolveActorUsername(),
+            ct);
+
+        if (result == null)
+        {
+            return NotFound(new { message = "Khong tim thay encounter de dinh kem tai lieu." });
+        }
+
+        return Ok(result);
+    }
+
     private Guid? ResolveActorUserId()
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)

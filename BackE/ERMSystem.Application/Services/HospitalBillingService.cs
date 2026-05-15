@@ -11,13 +11,16 @@ public class HospitalBillingService : IHospitalBillingService
 
     private readonly IHospitalBillingRepository _hospitalBillingRepository;
     private readonly IHospitalIdentityBridgeService _hospitalIdentityBridgeService;
+    private readonly IBusinessMetricsRecorder _businessMetricsRecorder;
 
     public HospitalBillingService(
         IHospitalBillingRepository hospitalBillingRepository,
-        IHospitalIdentityBridgeService hospitalIdentityBridgeService)
+        IHospitalIdentityBridgeService hospitalIdentityBridgeService,
+        IBusinessMetricsRecorder businessMetricsRecorder)
     {
         _hospitalBillingRepository = hospitalBillingRepository;
         _hospitalIdentityBridgeService = hospitalIdentityBridgeService;
+        _businessMetricsRecorder = businessMetricsRecorder;
     }
 
     public Task<PaginatedResult<HospitalInvoiceSummaryDto>> GetWorklistAsync(
@@ -116,6 +119,11 @@ public class HospitalBillingService : IHospitalBillingService
 
         await _hospitalBillingRepository.SaveChangesAsync(ct);
 
+        _businessMetricsRecorder.IncrementEvent("hospital_billing", "invoice_issued", new Dictionary<string, string?>
+        {
+            ["line_count"] = encounter.BillableLines.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)
+        });
+
         var created = await _hospitalBillingRepository.GetByIdAsync(invoiceId, ct)
             ?? throw new InvalidOperationException("Khong the tai lai hoa don sau khi tao.");
 
@@ -140,9 +148,7 @@ public class HospitalBillingService : IHospitalBillingService
             throw new InvalidOperationException("Hoa don nay da duoc thanh toan du.");
         }
 
-        var paidAmount = invoice.Payments
-            .Where(x => x.PaymentStatus == "Captured")
-            .Sum(x => x.Amount);
+        var paidAmount = CalculateNetPaidAmount(invoice);
         var balance = invoice.TotalAmount - paidAmount;
         if (request.Amount > balance)
         {
@@ -168,7 +174,7 @@ public class HospitalBillingService : IHospitalBillingService
         }, ct);
 
         var newPaidAmount = paidAmount + request.Amount;
-        var newStatus = newPaidAmount >= invoice.TotalAmount ? "Paid" : "PartiallyPaid";
+        var newStatus = ResolveInvoiceStatus(invoice.TotalAmount, newPaidAmount);
         await _hospitalBillingRepository.UpdateInvoiceAmountsAsync(
             invoiceId,
             newStatus,
@@ -208,17 +214,119 @@ public class HospitalBillingService : IHospitalBillingService
 
         await _hospitalBillingRepository.SaveChangesAsync(ct);
 
+        _businessMetricsRecorder.IncrementEvent("hospital_billing", "payment_received", new Dictionary<string, string?>
+        {
+            ["invoice_status"] = newStatus,
+            ["payment_method"] = request.PaymentMethod.Trim()
+        });
+
         var updated = await _hospitalBillingRepository.GetByIdAsync(invoiceId, ct)
             ?? throw new InvalidOperationException("Khong the tai lai hoa don sau khi ghi nhan thanh toan.");
 
         return MapDetail(updated);
     }
 
+    public async Task<HospitalInvoiceDetailDto?> RefundPaymentAsync(
+        Guid invoiceId,
+        RefundHospitalPaymentDto request,
+        Guid? actorUserId,
+        string? actorUsername,
+        CancellationToken ct = default)
+    {
+        var invoice = await _hospitalBillingRepository.GetByIdAsync(invoiceId, ct);
+        if (invoice == null)
+        {
+            return null;
+        }
+
+        var refundableAmount = CalculateNetPaidAmount(invoice);
+        if (refundableAmount <= 0)
+        {
+            throw new InvalidOperationException("Hoa don nay khong con so tien hop le de hoan.");
+        }
+
+        if (request.Amount > refundableAmount)
+        {
+            throw new InvalidOperationException("So tien hoan vuot qua tong da thu chua hoan.");
+        }
+
+        var actorHospitalUserId = await _hospitalIdentityBridgeService.ResolveHospitalUserIdAsync(actorUserId, actorUsername, ct);
+        var nowUtc = DateTime.UtcNow;
+        var normalizedReason = NormalizeText(request.Reason)
+            ?? throw new InvalidOperationException("Ly do hoan tien khong hop le.");
+
+        await _hospitalBillingRepository.AddPaymentAsync(new HospitalPaymentCreateCommand
+        {
+            PaymentId = Guid.NewGuid(),
+            InvoiceId = invoiceId,
+            PaymentReference = string.IsNullOrWhiteSpace(request.PaymentReference)
+                ? GenerateRefundReference(nowUtc)
+                : request.PaymentReference.Trim(),
+            PaymentMethod = request.PaymentMethod.Trim(),
+            Amount = -request.Amount,
+            PaymentStatus = "Refunded",
+            PaidAtUtc = nowUtc,
+            ReceivedByUserId = actorHospitalUserId,
+            ExternalTransactionId = NormalizeText(request.ExternalTransactionId)
+        }, ct);
+
+        var netPaidAfterRefund = refundableAmount - request.Amount;
+        var newStatus = ResolveInvoiceStatus(invoice.TotalAmount, netPaidAfterRefund);
+        await _hospitalBillingRepository.UpdateInvoiceAmountsAsync(
+            invoiceId,
+            newStatus,
+            invoice.SubtotalAmount,
+            invoice.DiscountAmount,
+            invoice.InsuranceAmount,
+            invoice.TotalAmount,
+            ct);
+
+        await _hospitalBillingRepository.AddOutboxMessageAsync(new HospitalBillingOutboxCreateCommand
+        {
+            OutboxMessageId = Guid.NewGuid(),
+            AggregateType = "Invoice",
+            AggregateId = invoiceId,
+            EventType = "InvoiceRefunded.v1",
+            PayloadJson = JsonSerializer.Serialize(new
+            {
+                invoiceId,
+                invoice.InvoiceNumber,
+                patientId = invoice.PatientId,
+                patientName = invoice.PatientName,
+                medicalRecordNumber = invoice.MedicalRecordNumber,
+                phone = invoice.PatientPhone,
+                email = invoice.PatientEmail,
+                amount = request.Amount,
+                paymentMethod = request.PaymentMethod.Trim(),
+                paymentReference = string.IsNullOrWhiteSpace(request.PaymentReference)
+                    ? null
+                    : request.PaymentReference.Trim(),
+                refundedAtUtc = nowUtc,
+                reason = normalizedReason,
+                receivedByUserId = actorHospitalUserId,
+                invoiceStatus = newStatus
+            }, JsonOptions),
+            Status = "Pending",
+            AvailableAtUtc = nowUtc
+        }, ct);
+
+        await _hospitalBillingRepository.SaveChangesAsync(ct);
+
+        _businessMetricsRecorder.IncrementEvent("hospital_billing", "payment_refunded", new Dictionary<string, string?>
+        {
+            ["invoice_status"] = newStatus,
+            ["payment_method"] = request.PaymentMethod.Trim()
+        });
+
+        var updated = await _hospitalBillingRepository.GetByIdAsync(invoiceId, ct)
+            ?? throw new InvalidOperationException("Khong the tai lai hoa don sau khi ghi nhan hoan tien.");
+
+        return MapDetail(updated);
+    }
+
     private static HospitalInvoiceDetailDto MapDetail(HospitalInvoiceAggregateSnapshot invoice)
     {
-        var paidAmount = invoice.Payments
-            .Where(x => x.PaymentStatus == "Captured")
-            .Sum(x => x.Amount);
+        var paidAmount = CalculateNetPaidAmount(invoice);
 
         return new HospitalInvoiceDetailDto
         {
@@ -269,6 +377,26 @@ public class HospitalBillingService : IHospitalBillingService
         };
     }
 
+    private static decimal CalculateNetPaidAmount(HospitalInvoiceAggregateSnapshot invoice)
+        => invoice.Payments
+            .Where(x => x.PaymentStatus is "Captured" or "Refunded")
+            .Sum(x => x.Amount);
+
+    private static string ResolveInvoiceStatus(decimal totalAmount, decimal netPaidAmount)
+    {
+        if (netPaidAmount >= totalAmount)
+        {
+            return "Paid";
+        }
+
+        if (netPaidAmount > 0)
+        {
+            return "PartiallyPaid";
+        }
+
+        return "Issued";
+    }
+
     private static string? NormalizeText(string? value)
     {
         var normalized = value?.Trim();
@@ -280,6 +408,9 @@ public class HospitalBillingService : IHospitalBillingService
 
     private static string GeneratePaymentReference(DateTime nowUtc)
         => $"PAY-{nowUtc:yyyyMMddHHmmss}-{Random.Shared.Next(1000, 9999)}";
+
+    private static string GenerateRefundReference(DateTime nowUtc)
+        => $"REF-{nowUtc:yyyyMMddHHmmss}-{Random.Shared.Next(1000, 9999)}";
 
     private static TimeZoneInfo ResolveClinicTimeZone()
     {

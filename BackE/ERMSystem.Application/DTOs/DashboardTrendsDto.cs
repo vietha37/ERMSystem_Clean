@@ -10,8 +10,10 @@ namespace ERMSystem.Application.DTOs
         public DateTime FromDate { get; set; }
         public DateTime ToDate { get; set; }
         public int CurrentPatientsTotal { get; set; }
+        public int CurrentAppointmentsTotal { get; set; }
         public int CurrentPrescriptionsTotal { get; set; }
         public int PreviousPatientsTotal { get; set; }
+        public int PreviousAppointmentsTotal { get; set; }
         public int PreviousPrescriptionsTotal { get; set; }
     }
 }

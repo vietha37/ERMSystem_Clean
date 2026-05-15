@@ -43,7 +43,7 @@ public class ApiExceptionHandlingMiddleware
         _logger.Log(
             logLevel,
             exception,
-            "Unhandled exception for {Method} {Path}. CorrelationId={CorrelationId}",
+            "Unhandled exception for {HttpMethod} {RequestPath}. ErrorCorrelationId={ErrorCorrelationId}",
             context.Request.Method,
             context.Request.Path.Value,
             context.TraceIdentifier);

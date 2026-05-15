@@ -242,6 +242,7 @@ public class HospitalNotificationConsumerService : BackgroundService
             "PrescriptionDispensed.v1" => "PRESCRIPTION_DISPENSED",
             "InvoiceIssued.v1" => "INVOICE_ISSUED",
             "InvoicePaymentReceived.v1" => "INVOICE_PAYMENT_RECEIVED",
+            "InvoiceRefunded.v1" => "INVOICE_REFUNDED",
             _ => "GENERIC_NOTIFICATION"
         };
 

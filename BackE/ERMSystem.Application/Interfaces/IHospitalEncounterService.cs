@@ -28,4 +28,11 @@ public interface IHospitalEncounterService
         Guid? actorUserId,
         string? actorUsername,
         CancellationToken ct = default);
+
+    Task<HospitalEncounterDetailDto?> AddAttachmentAsync(
+        Guid encounterId,
+        AddHospitalEncounterAttachmentDto request,
+        Guid? actorUserId,
+        string? actorUsername,
+        CancellationToken ct = default);
 }

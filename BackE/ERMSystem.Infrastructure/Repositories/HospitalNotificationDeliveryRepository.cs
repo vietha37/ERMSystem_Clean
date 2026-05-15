@@ -14,7 +14,13 @@ public class HospitalNotificationDeliveryRepository : IHospitalNotificationDeliv
         _hospitalDbContext = hospitalDbContext;
     }
 
-    public async Task<NotificationDeliveryListDto> GetDeliveriesAsync(string? status, int pageNumber, int pageSize, CancellationToken ct = default)
+    public async Task<NotificationDeliveryListDto> GetDeliveriesAsync(
+        string? status,
+        string? channelCode,
+        string? recipient,
+        int pageNumber,
+        int pageSize,
+        CancellationToken ct = default)
     {
         pageNumber = Math.Max(1, pageNumber);
         pageSize = Math.Clamp(pageSize, 1, 100);
@@ -24,6 +30,18 @@ public class HospitalNotificationDeliveryRepository : IHospitalNotificationDeliv
         if (!string.IsNullOrWhiteSpace(status))
         {
             query = query.Where(x => x.DeliveryStatus == status.Trim());
+        }
+
+        if (!string.IsNullOrWhiteSpace(channelCode))
+        {
+            var normalizedChannel = channelCode.Trim();
+            query = query.Where(x => x.ChannelCode == normalizedChannel);
+        }
+
+        if (!string.IsNullOrWhiteSpace(recipient))
+        {
+            var recipientPattern = $"%{recipient.Trim()}%";
+            query = query.Where(x => EF.Functions.Like(x.Recipient, recipientPattern));
         }
 
         var totalCount = await query.CountAsync(ct);
@@ -54,12 +72,18 @@ public class HospitalNotificationDeliveryRepository : IHospitalNotificationDeliv
         };
     }
 
-    public async Task<bool> RetryDeliveryAsync(Guid deliveryId, CancellationToken ct = default)
+    public async Task<NotificationDeliveryRetryResult> RetryDeliveryAsync(Guid deliveryId, CancellationToken ct = default)
     {
         var delivery = await _hospitalDbContext.NotificationDeliveries.FirstOrDefaultAsync(x => x.Id == deliveryId, ct);
         if (delivery == null)
         {
-            return false;
+            return NotificationDeliveryRetryResult.NotFound;
+        }
+
+        if (!string.Equals(delivery.DeliveryStatus, "Failed", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(delivery.DeliveryStatus, "Skipped", StringComparison.OrdinalIgnoreCase))
+        {
+            return NotificationDeliveryRetryResult.InvalidStatus;
         }
 
         delivery.DeliveryStatus = "Queued";
@@ -68,6 +92,6 @@ public class HospitalNotificationDeliveryRepository : IHospitalNotificationDeliv
         delivery.DeliveredAtUtc = null;
 
         await _hospitalDbContext.SaveChangesAsync(ct);
-        return true;
+        return NotificationDeliveryRetryResult.Requeued;
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Text.Json;
 using ERMSystem.Application.DTOs;
 using ERMSystem.Application.DTOs.Common;
@@ -14,13 +15,16 @@ public class HospitalPrescriptionService : IHospitalPrescriptionService
 
     private readonly IHospitalPrescriptionRepository _hospitalPrescriptionRepository;
     private readonly IHospitalIdentityBridgeService _hospitalIdentityBridgeService;
+    private readonly IBusinessMetricsRecorder _businessMetricsRecorder;
 
     public HospitalPrescriptionService(
         IHospitalPrescriptionRepository hospitalPrescriptionRepository,
-        IHospitalIdentityBridgeService hospitalIdentityBridgeService)
+        IHospitalIdentityBridgeService hospitalIdentityBridgeService,
+        IBusinessMetricsRecorder businessMetricsRecorder)
     {
         _hospitalPrescriptionRepository = hospitalPrescriptionRepository;
         _hospitalIdentityBridgeService = hospitalIdentityBridgeService;
+        _businessMetricsRecorder = businessMetricsRecorder;
     }
 
     public Task<PaginatedResult<HospitalPrescriptionSummaryDto>> GetWorklistAsync(
@@ -77,6 +81,7 @@ public class HospitalPrescriptionService : IHospitalPrescriptionService
         }
 
         var medicineLookup = medicines.ToDictionary(x => x.MedicineId, x => x);
+        ValidatePrescriptionItems(request.Items, medicineLookup);
         var nowUtc = DateTime.UtcNow;
         var orderHeaderId = Guid.NewGuid();
         var prescriptionId = Guid.NewGuid();
@@ -162,6 +167,12 @@ public class HospitalPrescriptionService : IHospitalPrescriptionService
 
         await _hospitalPrescriptionRepository.SaveChangesAsync(ct);
 
+        _businessMetricsRecorder.IncrementEvent("hospital_prescription", "issued", new Dictionary<string, string?>
+        {
+            ["status"] = normalizedStatus,
+            ["item_count"] = request.Items.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)
+        });
+
         var created = await _hospitalPrescriptionRepository.GetByIdAsync(prescriptionId, ct)
             ?? throw new InvalidOperationException("Khong the tai lai don thuoc sau khi tao.");
 
@@ -234,6 +245,8 @@ public class HospitalPrescriptionService : IHospitalPrescriptionService
 
         await _hospitalPrescriptionRepository.SaveChangesAsync(ct);
 
+        _businessMetricsRecorder.IncrementEvent("hospital_prescription", "dispensed");
+
         var updated = await _hospitalPrescriptionRepository.GetByIdAsync(prescriptionId, ct)
             ?? throw new InvalidOperationException("Khong the tai lai don thuoc sau khi cap thuoc.");
 
@@ -276,6 +289,20 @@ public class HospitalPrescriptionService : IHospitalPrescriptionService
             DispensedByUsername = prescription.DispensedByUsername,
             DispensingNotes = prescription.DispensingNotes,
             Notes = prescription.Notes,
+            Warnings = BuildPrescriptionWarnings(prescription.Items),
+            DispensingHistory = prescription.DispensingHistory
+                .Select(dispensing => new HospitalPrescriptionDispensingHistoryDto
+                {
+                    DispensingId = dispensing.DispensingId,
+                    DispensingStatus = dispensing.DispensingStatus,
+                    DispensedAtLocal = dispensing.DispensedAtUtc.HasValue
+                        ? ConvertUtcToClinicLocal(dispensing.DispensedAtUtc.Value)
+                        : null,
+                    DispensedByUserId = dispensing.DispensedByUserId,
+                    DispensedByUsername = dispensing.DispensedByUsername,
+                    Notes = dispensing.Notes
+                })
+                .ToList(),
             Items = prescription.Items.Select(item => new HospitalPrescriptionItemDto
             {
                 PrescriptionItemId = item.PrescriptionItemId,
@@ -322,6 +349,93 @@ public class HospitalPrescriptionService : IHospitalPrescriptionService
     {
         var normalized = value?.Trim();
         return string.IsNullOrWhiteSpace(normalized) ? null : normalized;
+    }
+
+    private static void ValidatePrescriptionItems(
+        IReadOnlyCollection<CreateHospitalPrescriptionItemDto> items,
+        IReadOnlyDictionary<Guid, HospitalMedicineSnapshot> medicineLookup)
+    {
+        var duplicateMedicineIds = items
+            .GroupBy(x => x.MedicineId)
+            .Where(x => x.Count() > 1)
+            .Select(x => x.Key)
+            .ToArray();
+        if (duplicateMedicineIds.Length > 0)
+        {
+            throw new InvalidOperationException("Khong duoc ke trung mot thuoc nhieu lan trong cung don.");
+        }
+
+        foreach (var item in items)
+        {
+            var medicine = medicineLookup[item.MedicineId];
+            var doseInstruction = NormalizeRequiredText(item.DoseInstruction, "Lieu dung");
+            if (!TryExtractPositiveNumber(doseInstruction, out var dosePerAdministration))
+            {
+                throw new InvalidOperationException(
+                    $"Lieu dung cua thuoc {medicine.Name} phai chua so luong hop le, vi du '1 vien/lần'.");
+            }
+
+            if (medicine.IsControlled && item.DurationDays.HasValue && item.DurationDays.Value > 30)
+            {
+                throw new InvalidOperationException(
+                    $"Thuoc kiem soat dac biet {medicine.Name} khong duoc ke qua 30 ngay.");
+            }
+
+            var frequency = NormalizeText(item.Frequency);
+            if (!string.IsNullOrWhiteSpace(frequency) &&
+                item.DurationDays.HasValue &&
+                TryExtractPositiveNumber(frequency, out var administrationsPerDay))
+            {
+                var minimumQuantity = Math.Ceiling(dosePerAdministration * administrationsPerDay * item.DurationDays.Value);
+                if (item.Quantity < minimumQuantity)
+                {
+                    throw new InvalidOperationException(
+                        $"So luong thuoc {medicine.Name} khong du cho lieu trinh toi thieu {minimumQuantity:0.##} {medicine.Unit ?? "don vi"}.");
+                }
+            }
+        }
+    }
+
+    private static List<string> BuildPrescriptionWarnings(IReadOnlyCollection<HospitalPrescriptionItemSnapshot> items)
+    {
+        var warnings = new List<string>();
+
+        var duplicateGenericGroups = items
+            .Where(x => !string.IsNullOrWhiteSpace(x.GenericName))
+            .GroupBy(x => x.GenericName!.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Where(x => x.Select(item => item.MedicineId).Distinct().Count() > 1)
+            .ToArray();
+
+        foreach (var group in duplicateGenericGroups)
+        {
+            var medicineNames = string.Join(", ", group.Select(x => x.MedicineName).Distinct(StringComparer.OrdinalIgnoreCase));
+            warnings.Add($"Canh bao trung hoat chat: {group.Key} xuat hien trong cac thuoc {medicineNames}.");
+        }
+
+        return warnings;
+    }
+
+    private static bool TryExtractPositiveNumber(string input, out decimal value)
+    {
+        value = 0;
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return false;
+        }
+
+        var match = Regex.Match(input, @"(?<!\d)(\d+(?:[.,]\d+)?)");
+        if (!match.Success)
+        {
+            return false;
+        }
+
+        var normalized = match.Groups[1].Value.Replace(',', '.');
+        return decimal.TryParse(
+                   normalized,
+                   System.Globalization.NumberStyles.Number,
+                   System.Globalization.CultureInfo.InvariantCulture,
+                   out value)
+               && value > 0;
     }
 
     private static string GenerateOrderNumber(DateTime nowUtc)

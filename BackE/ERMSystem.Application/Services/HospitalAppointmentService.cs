@@ -15,13 +15,16 @@ namespace ERMSystem.Application.Services
 
         private readonly IHospitalDoctorRepository _hospitalDoctorRepository;
         private readonly IHospitalAppointmentRepository _hospitalAppointmentRepository;
+        private readonly IBusinessMetricsRecorder _businessMetricsRecorder;
 
         public HospitalAppointmentService(
             IHospitalDoctorRepository hospitalDoctorRepository,
-            IHospitalAppointmentRepository hospitalAppointmentRepository)
+            IHospitalAppointmentRepository hospitalAppointmentRepository,
+            IBusinessMetricsRecorder businessMetricsRecorder)
         {
             _hospitalDoctorRepository = hospitalDoctorRepository;
             _hospitalAppointmentRepository = hospitalAppointmentRepository;
+            _businessMetricsRecorder = businessMetricsRecorder;
         }
 
         public async Task<HospitalAppointmentBookingResultDto> BookPublicAppointmentAsync(
@@ -150,6 +153,12 @@ namespace ERMSystem.Application.Services
 
             await _hospitalAppointmentRepository.SaveChangesAsync(ct);
 
+            _businessMetricsRecorder.IncrementEvent("hospital_appointment", "booked", new Dictionary<string, string?>
+            {
+                ["channel"] = "website",
+                ["patient_type"] = isExistingPatient ? "existing" : "new"
+            });
+
             return new HospitalAppointmentBookingResultDto
             {
                 AppointmentId = appointmentId,
@@ -214,6 +223,8 @@ namespace ERMSystem.Application.Services
 
             await _hospitalAppointmentRepository.UpdateStatusAsync(appointment.AppointmentId, "CheckedIn", ct);
             await _hospitalAppointmentRepository.SaveChangesAsync(ct);
+
+            _businessMetricsRecorder.IncrementEvent("hospital_appointment", "checked_in");
 
             var refreshed = await _hospitalAppointmentRepository.GetAppointmentAggregateAsync(appointmentId, ct);
             return refreshed == null ? null : MapAggregateToWorklistItem(refreshed);
@@ -285,6 +296,15 @@ namespace ERMSystem.Application.Services
             }
 
             await _hospitalAppointmentRepository.SaveChangesAsync(ct);
+
+            if (!string.Equals(previousStatus, normalizedStatus, StringComparison.OrdinalIgnoreCase))
+            {
+                _businessMetricsRecorder.IncrementEvent("hospital_appointment", "status_updated", new Dictionary<string, string?>
+                {
+                    ["current_status"] = normalizedStatus,
+                    ["previous_status"] = previousStatus
+                });
+            }
 
             var refreshed = await _hospitalAppointmentRepository.GetAppointmentAggregateAsync(appointmentId, ct);
             return refreshed == null ? null : MapAggregateToWorklistItem(refreshed);

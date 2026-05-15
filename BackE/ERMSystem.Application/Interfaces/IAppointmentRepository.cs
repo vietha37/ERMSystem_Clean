@@ -11,6 +11,10 @@ namespace ERMSystem.Application.Interfaces
         Task<(IEnumerable<Appointment> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize, CancellationToken ct = default);
         Task<int> GetAppointmentsTodayCountAsync(CancellationToken ct = default);
         Task<int> GetCompletedAppointmentsCountAsync(CancellationToken ct = default);
+        Task<int> GetPendingAppointmentsTodayCountAsync(CancellationToken ct = default);
+        Task<int> GetCompletedAppointmentsTodayCountAsync(CancellationToken ct = default);
+        Task<int> GetCancelledAppointmentsTodayCountAsync(CancellationToken ct = default);
+        Task<Dictionary<DateTime, int>> GetScheduledCountByDayAsync(DateTime fromUtc, CancellationToken ct = default);
         Task<List<Appointment>> GetByDateRangeAsync(DateTime fromUtc, DateTime toUtc, CancellationToken ct = default);
         Task<Appointment?> GetByIdAsync(Guid id, CancellationToken ct = default);
         Task AddAsync(Appointment appointment, CancellationToken ct = default);

@@ -4,6 +4,7 @@ namespace ERMSystem.Application.DTOs
     {
         public string Label { get; set; } = string.Empty;
         public int PatientsCount { get; set; }
+        public int AppointmentsCount { get; set; }
         public int PrescriptionsCount { get; set; }
     }
 }

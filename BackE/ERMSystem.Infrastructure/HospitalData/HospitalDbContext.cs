@@ -39,6 +39,7 @@ public class HospitalDbContext : DbContext
     public DbSet<HospitalVitalSignEntity> VitalSigns => Set<HospitalVitalSignEntity>();
     public DbSet<HospitalDiagnosisEntity> Diagnoses => Set<HospitalDiagnosisEntity>();
     public DbSet<HospitalClinicalNoteEntity> ClinicalNotes => Set<HospitalClinicalNoteEntity>();
+    public DbSet<HospitalEncounterAttachmentEntity> EncounterAttachments => Set<HospitalEncounterAttachmentEntity>();
     public DbSet<HospitalOrderHeaderEntity> OrderHeaders => Set<HospitalOrderHeaderEntity>();
     public DbSet<HospitalLabServiceEntity> LabServices => Set<HospitalLabServiceEntity>();
     public DbSet<HospitalLabOrderEntity> LabOrders => Set<HospitalLabOrderEntity>();
@@ -309,6 +310,18 @@ public class HospitalDbContext : DbContext
             .HasOne(x => x.AuthoredByUser)
             .WithMany()
             .HasForeignKey(x => x.AuthoredByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<HospitalEncounterAttachmentEntity>()
+            .HasOne(x => x.Encounter)
+            .WithMany(x => x.Attachments)
+            .HasForeignKey(x => x.EncounterId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<HospitalEncounterAttachmentEntity>()
+            .HasOne(x => x.UploadedByUser)
+            .WithMany()
+            .HasForeignKey(x => x.UploadedByUserId)
             .OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<HospitalOrderHeaderEntity>()

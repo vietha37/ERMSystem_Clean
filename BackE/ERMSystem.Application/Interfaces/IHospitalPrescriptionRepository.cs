@@ -55,7 +55,18 @@ public class HospitalPrescriptionAggregateSnapshot
     public string? PrimaryDiagnosisName { get; set; }
     public DateTime CreatedAtUtc { get; set; }
     public string? Notes { get; set; }
+    public HospitalPrescriptionDispensingSnapshot[] DispensingHistory { get; set; } = Array.Empty<HospitalPrescriptionDispensingSnapshot>();
     public HospitalPrescriptionItemSnapshot[] Items { get; set; } = Array.Empty<HospitalPrescriptionItemSnapshot>();
+}
+
+public class HospitalPrescriptionDispensingSnapshot
+{
+    public Guid DispensingId { get; set; }
+    public string DispensingStatus { get; set; } = string.Empty;
+    public DateTime? DispensedAtUtc { get; set; }
+    public Guid? DispensedByUserId { get; set; }
+    public string? DispensedByUsername { get; set; }
+    public string? Notes { get; set; }
 }
 
 public class HospitalPrescriptionItemSnapshot
@@ -104,6 +115,7 @@ public class HospitalMedicineSnapshot
     public string? Strength { get; set; }
     public string? DosageForm { get; set; }
     public string? Unit { get; set; }
+    public bool IsControlled { get; set; }
 }
 
 public class HospitalPrescriptionOrderHeaderCreateCommand

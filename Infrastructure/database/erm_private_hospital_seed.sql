@@ -280,6 +280,10 @@ WHERE NOT EXISTS (SELECT 1 FROM pharmacy.Medicines WHERE DrugCode = 'MED-PAR-500
 INSERT INTO pharmacy.Medicines (Id, DrugCode, Name, GenericName, Strength, DosageForm, Unit)
 SELECT NEWID(), 'MED-AMO-500', N'Amoxicillin 500mg', N'Amoxicillin', N'500mg', N'Viên nang', N'Viên'
 WHERE NOT EXISTS (SELECT 1 FROM pharmacy.Medicines WHERE DrugCode = 'MED-AMO-500');
+
+INSERT INTO pharmacy.Medicines (Id, DrugCode, Name, GenericName, Strength, DosageForm, Unit)
+SELECT NEWID(), 'MED-AMO-250', N'Amoxicillin 250mg', N'Amoxicillin', N'250mg', N'Viên nang', N'Viên'
+WHERE NOT EXISTS (SELECT 1 FROM pharmacy.Medicines WHERE DrugCode = 'MED-AMO-250');
 GO
 
 
@@ -412,5 +416,21 @@ WHERE NOT EXISTS (
     SELECT 1
     FROM notification.NotificationTemplates
     WHERE TemplateCode = 'INVOICE_PAYMENT_RECEIVED' AND ChannelCode = 'SMS'
+);
+
+INSERT INTO notification.NotificationTemplates (Id, TemplateCode, ChannelCode, SubjectTemplate, BodyTemplate, IsActive)
+SELECT NEWID(), 'INVOICE_REFUNDED', 'Email', N'Da hoan tien cho hoa don {{InvoiceNumber}}', N'Xin chao {{PatientName}}, he thong da ghi nhan hoan tien {{Amount}} cho hoa don {{InvoiceNumber}} qua {{PaymentMethod}}.', 1
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM notification.NotificationTemplates
+    WHERE TemplateCode = 'INVOICE_REFUNDED' AND ChannelCode = 'Email'
+);
+
+INSERT INTO notification.NotificationTemplates (Id, TemplateCode, ChannelCode, SubjectTemplate, BodyTemplate, IsActive)
+SELECT NEWID(), 'INVOICE_REFUNDED', 'SMS', NULL, N'Da hoan tien {{Amount}} cho hoa don {{InvoiceNumber}}.', 1
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM notification.NotificationTemplates
+    WHERE TemplateCode = 'INVOICE_REFUNDED' AND ChannelCode = 'SMS'
 );
 GO

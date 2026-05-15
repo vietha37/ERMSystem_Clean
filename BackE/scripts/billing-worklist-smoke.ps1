@@ -263,12 +263,50 @@ try {
     throw "Invoice khong xuat hien trong worklist Paid."
   }
 
+  $refundAmount = [Math]::Round([decimal]$finalPayment.totalAmount / 3, 2)
+  if ($refundAmount -le 0) {
+    throw "Khong the tao so tien refund hop le."
+  }
+
+  $refund = Invoke-RestMethod `
+    -Method Post `
+    -Uri "$baseUrl/api/hospital-billing/$($invoice.invoiceId)/refunds" `
+    -Headers $headers `
+    -ContentType "application/json" `
+    -Body (@{
+      paymentMethod = "Cash"
+      paymentReference = "REF-PART-$suffix"
+      amount = $refundAmount
+      reason = "Smoke test refund"
+    } | ConvertTo-Json)
+
+  if ($refund.invoiceStatus -ne "PartiallyPaid") {
+    throw "Invoice sau refund khong sang PartiallyPaid."
+  }
+
+  $refundPayment = @($refund.payments | Where-Object { $_.paymentStatus -eq "Refunded" } | Sort-Object paidAtLocal -Descending) | Select-Object -First 1
+  if ($null -eq $refundPayment) {
+    throw "Khong tim thay payment Refund trong invoice detail."
+  }
+
+  $postRefundList = Invoke-RestMethod `
+    -Method Get `
+    -Uri "$baseUrl/api/hospital-billing?pageNumber=1&pageSize=20&invoiceStatus=PartiallyPaid&textSearch=$($invoice.invoiceNumber)" `
+    -Headers $headers
+
+  $postRefundItem = @($postRefundList.items | Where-Object { $_.invoiceId -eq $invoice.invoiceId }) | Select-Object -First 1
+  if ($null -eq $postRefundItem) {
+    throw "Invoice sau refund khong xuat hien lai trong worklist PartiallyPaid."
+  }
+
   Write-Output ("encounter_number=" + $encounter.encounterNumber)
   Write-Output ("invoice_number=" + $invoice.invoiceNumber)
   Write-Output ("eligible_found=" + $true)
   Write-Output ("issued_total=" + $issuedList.totalCount)
   Write-Output ("partial_balance=" + $partialPayment.balanceAmount)
   Write-Output ("paid_total=" + $paidList.totalCount)
+  Write-Output ("refund_amount=" + $refundAmount)
+  Write-Output ("refund_status=" + $refund.invoiceStatus)
 }
 finally {
   if ($process -and -not $process.HasExited) {

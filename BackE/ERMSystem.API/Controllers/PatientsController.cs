@@ -45,6 +45,22 @@ namespace ERMSystem.API.Controllers
             return Ok(patient);
         }
 
+        // GET: api/patients/{id}/potential-duplicates
+        [HttpGet("{id}/potential-duplicates")]
+        [Authorize(Policy = AppPermissions.Patients.Read)]
+        public async Task<IActionResult> GetPotentialDuplicates(Guid id, CancellationToken ct)
+        {
+            try
+            {
+                var result = await _patientService.GetPotentialDuplicatesAsync(id, ct);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+        }
+
         // GET: api/patients/me
         [HttpGet("me")]
         [Authorize(Policy = AppPermissions.Patients.SelfRead)]
@@ -99,6 +115,29 @@ namespace ERMSystem.API.Controllers
             return NoContent();
         }
 
+        // POST: api/patients/merge
+        [HttpPost("merge")]
+        [Authorize(Policy = AppPermissions.Patients.Merge)]
+        public async Task<IActionResult> MergePatients([FromBody] MergePatientsRequestDto request, CancellationToken ct)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            try
+            {
+                var result = await _patientService.MergePatientsAsync(request, ct);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { message = ex.Message });
+            }
+        }
+
         // DELETE: api/patients/{id}
         [HttpDelete("{id}")]
         [Authorize(Policy = AppPermissions.Patients.Delete)]
@@ -111,6 +150,10 @@ namespace ERMSystem.API.Controllers
             catch (KeyNotFoundException ex)
             {
                 return NotFound(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { message = ex.Message });
             }
 
             return NoContent();

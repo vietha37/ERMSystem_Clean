@@ -139,9 +139,11 @@ function MainTrendChart({ points }: { points: DashboardTrendPoint[] }) {
   const height = 310;
   const padding = 28;
   const patientValues = points.map((point) => point.patientsCount);
+  const appointmentValues = points.map((point) => point.appointmentsCount);
   const prescriptionValues = points.map((point) => point.prescriptionsCount);
-  const maxValue = Math.max(...patientValues, ...prescriptionValues, 1);
+  const maxValue = Math.max(...patientValues, ...appointmentValues, ...prescriptionValues, 1);
   const patientLine = chartPoints(patientValues, width, height, padding);
+  const appointmentLine = chartPoints(appointmentValues, width, height, padding);
   const prescriptionLine = chartPoints(prescriptionValues, width, height, padding);
   const patientArea = areaPath(patientLine, width, height, padding);
   const labelStep = Math.max(1, Math.floor(points.length / 7));
@@ -151,12 +153,16 @@ function MainTrendChart({ points }: { points: DashboardTrendPoint[] }) {
       <div className="mb-4 flex items-center justify-between">
         <div>
           <p className="text-sm font-semibold text-slate-800">Analysis</p>
-          <p className="text-xs text-slate-500">Patients and prescriptions movement</p>
+          <p className="text-xs text-slate-500">Patients, appointments, and prescriptions movement</p>
         </div>
         <div className="flex items-center gap-4 text-xs">
           <span className="flex items-center gap-2 text-slate-600">
             <span className="h-2.5 w-2.5 rounded-full bg-blue-500" />
             Patients
+          </span>
+          <span className="flex items-center gap-2 text-slate-600">
+            <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+            Appointments
           </span>
           <span className="flex items-center gap-2 text-slate-600">
             <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
@@ -192,6 +198,7 @@ function MainTrendChart({ points }: { points: DashboardTrendPoint[] }) {
 
           {patientArea ? <path d={patientArea} fill="url(#patientsFill)" /> : null}
           <polyline fill="none" stroke="#2563eb" strokeWidth="3" points={patientLine} />
+          <polyline fill="none" stroke="#f59e0b" strokeWidth="2.5" points={appointmentLine} />
           <polyline fill="none" stroke="#10b981" strokeWidth="2.5" points={prescriptionLine} />
 
           {points.map((point, idx) => {
@@ -337,23 +344,30 @@ export default function DashboardPage() {
     if (!trends && trendPoints.length === 0) {
       return {
         totalPatients: 0,
+        totalAppointments: 0,
         totalPrescriptions: 0,
         previousPatients: 0,
+        previousAppointments: 0,
         previousPrescriptions: 0,
       };
     }
 
     const totalPatients = trends?.currentPatientsTotal
       ?? trendPoints.reduce((sum, item) => sum + item.patientsCount, 0);
+    const totalAppointments = trends?.currentAppointmentsTotal
+      ?? trendPoints.reduce((sum, item) => sum + item.appointmentsCount, 0);
     const totalPrescriptions = trends?.currentPrescriptionsTotal
       ?? trendPoints.reduce((sum, item) => sum + item.prescriptionsCount, 0);
     const previousPatients = trends?.previousPatientsTotal ?? 0;
+    const previousAppointments = trends?.previousAppointmentsTotal ?? 0;
     const previousPrescriptions = trends?.previousPrescriptionsTotal ?? 0;
 
     return {
       totalPatients,
+      totalAppointments,
       totalPrescriptions,
       previousPatients,
+      previousAppointments,
       previousPrescriptions,
     };
   }, [trendPoints, trends]);
@@ -361,6 +375,7 @@ export default function DashboardPage() {
   const compareDelta = useMemo(() => {
     return {
       patients: trendSummary.totalPatients - trendSummary.previousPatients,
+      appointments: trendSummary.totalAppointments - trendSummary.previousAppointments,
       prescriptions: trendSummary.totalPrescriptions - trendSummary.previousPrescriptions,
     };
   }, [trendSummary]);
@@ -402,6 +417,18 @@ export default function DashboardPage() {
         color: palette[2].color,
         light: palette[2].light,
       },
+      {
+        label: "Pending",
+        value: Math.max(stats?.pendingAppointments ?? 0, 0),
+        color: palette[3].color,
+        light: palette[3].light,
+      },
+      {
+        label: "Cancelled",
+        value: Math.max(stats?.cancelledAppointments ?? 0, 0),
+        color: palette[4].color,
+        light: palette[4].light,
+      },
     ].filter((x) => x.value > 0);
   }, [topDiagnoses, stats]);
 
@@ -416,11 +443,14 @@ export default function DashboardPage() {
 
   const patients = stats?.totalPatients ?? 0;
   const appointmentsToday = stats?.appointmentsToday ?? 0;
+  const pending = stats?.pendingAppointments ?? 0;
   const completed = stats?.completedAppointments ?? 0;
+  const cancelled = stats?.cancelledAppointments ?? 0;
 
   const patientsPercent = clamp((patients / 1000) * 100, 0, 100);
   const todayPercent = clamp((appointmentsToday / 50) * 100, 0, 100);
-  const completedPercent = clamp((completed / Math.max(appointmentsToday, 1)) * 100, 0, 100);
+  const completedPercent = clamp(stats?.completionRatePercent ?? 0, 0, 100);
+  const cancelledPercent = clamp(stats?.cancellationRatePercent ?? 0, 0, 100);
 
   return (
     <div className="animate-fade-in space-y-6">
@@ -491,6 +521,39 @@ export default function DashboardPage() {
               />
             </div>
 
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Card className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800">Today Status Mix</p>
+                    <p className="text-xs text-slate-500">Pending, completed, and cancelled appointments</p>
+                  </div>
+                  <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+                    Pending {formatNumber(pending)}
+                  </span>
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div className="rounded-2xl bg-emerald-50 px-4 py-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Completion rate</p>
+                    <p className="mt-1 text-2xl font-bold text-emerald-900">{completedPercent.toFixed(0)}%</p>
+                    <p className="mt-1 text-xs text-emerald-700">{formatNumber(completed)} completed today</p>
+                  </div>
+                  <div className="rounded-2xl bg-rose-50 px-4 py-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-rose-700">Cancellation rate</p>
+                    <p className="mt-1 text-2xl font-bold text-rose-900">{cancelledPercent.toFixed(0)}%</p>
+                    <p className="mt-1 text-xs text-rose-700">{formatNumber(cancelled)} cancelled today</p>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+                <p className="text-sm font-semibold text-slate-800">Daily Snapshot</p>
+                <div className="mt-4">
+                  <DailySnapshotDonut items={snapshotPieData} />
+                </div>
+              </Card>
+            </div>
+
             {isTrendsLoading ? (
               <Card className="flex h-[390px] items-center justify-center rounded-3xl border border-slate-100 bg-white text-slate-500">
                 Loading chart...
@@ -503,7 +566,7 @@ export default function DashboardPage() {
               </Card>
             )}
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4">
               <Card className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
                 <p className="text-sm font-semibold text-slate-800">Top 5 Diagnoses</p>
                 <div className="mt-4 space-y-3">
@@ -524,12 +587,6 @@ export default function DashboardPage() {
                 </div>
               </Card>
 
-              <Card className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-                <p className="text-sm font-semibold text-slate-800">Daily Snapshot</p>
-                <div className="mt-4">
-                  <DailySnapshotDonut items={snapshotPieData} />
-                </div>
-              </Card>
             </div>
           </div>
 
@@ -540,6 +597,10 @@ export default function DashboardPage() {
                 <div className="rounded-2xl bg-gradient-to-r from-blue-500 to-sky-500 px-4 py-3 text-white">
                   <p className="text-xs opacity-90">Patients in selected period</p>
                   <p className="mt-1 text-2xl font-bold">{formatNumber(trendSummary.totalPatients)}</p>
+                </div>
+                <div className="rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-3 text-white">
+                  <p className="text-xs opacity-90">Appointments in selected period</p>
+                  <p className="mt-1 text-2xl font-bold">{formatNumber(trendSummary.totalAppointments)}</p>
                 </div>
                 <div className="rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-3 text-white">
                   <p className="text-xs opacity-90">Prescriptions in selected period</p>
@@ -560,6 +621,17 @@ export default function DashboardPage() {
                   >
                     {compareDelta.patients >= 0 ? "+" : ""}
                     {compareDelta.patients}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2">
+                  <span className="text-sm text-slate-600">Appointments</span>
+                  <span
+                    className={`text-sm font-semibold ${
+                      compareDelta.appointments >= 0 ? "text-emerald-600" : "text-rose-600"
+                    }`}
+                  >
+                    {compareDelta.appointments >= 0 ? "+" : ""}
+                    {compareDelta.appointments}
                   </span>
                 </div>
                 <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2">

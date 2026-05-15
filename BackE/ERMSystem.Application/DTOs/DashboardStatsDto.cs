@@ -6,7 +6,11 @@ namespace ERMSystem.Application.DTOs
     {
         public int TotalPatients { get; set; }
         public int AppointmentsToday { get; set; }
+        public int PendingAppointments { get; set; }
         public int CompletedAppointments { get; set; }
+        public int CancelledAppointments { get; set; }
+        public decimal CompletionRatePercent { get; set; }
+        public decimal CancellationRatePercent { get; set; }
         public Dictionary<string, int> TopDiagnoses { get; set; } = new Dictionary<string, int>();
     }
 }

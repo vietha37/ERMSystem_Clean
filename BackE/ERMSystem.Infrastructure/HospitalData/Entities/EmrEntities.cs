@@ -36,6 +36,7 @@ public class HospitalEncounterEntity
     public ICollection<HospitalVitalSignEntity> VitalSigns { get; set; } = new List<HospitalVitalSignEntity>();
     public ICollection<HospitalDiagnosisEntity> Diagnoses { get; set; } = new List<HospitalDiagnosisEntity>();
     public ICollection<HospitalClinicalNoteEntity> ClinicalNotes { get; set; } = new List<HospitalClinicalNoteEntity>();
+    public ICollection<HospitalEncounterAttachmentEntity> Attachments { get; set; } = new List<HospitalEncounterAttachmentEntity>();
 }
 
 [Table("VitalSigns", Schema = "emr")]
@@ -104,6 +105,33 @@ public class HospitalClinicalNoteEntity
 
     public HospitalEncounterEntity Encounter { get; set; } = null!;
     public HospitalUserEntity? AuthoredByUser { get; set; }
+}
+
+[Table("ClinicalDocuments", Schema = "emr")]
+public class HospitalEncounterAttachmentEntity
+{
+    [Key]
+    public Guid Id { get; set; }
+
+    public Guid EncounterId { get; set; }
+
+    [MaxLength(255)]
+    public string FileName { get; set; } = string.Empty;
+
+    [MaxLength(50)]
+    public string DocumentType { get; set; } = string.Empty;
+
+    [MaxLength(1000)]
+    public string StorageUri { get; set; } = string.Empty;
+
+    [MaxLength(150)]
+    public string? MimeType { get; set; }
+
+    public DateTime UploadedAtUtc { get; set; }
+    public Guid? UploadedByUserId { get; set; }
+
+    public HospitalEncounterEntity Encounter { get; set; } = null!;
+    public HospitalUserEntity? UploadedByUser { get; set; }
 }
 
 [Table("OrderHeaders", Schema = "emr")]

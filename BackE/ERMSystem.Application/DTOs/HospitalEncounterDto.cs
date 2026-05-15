@@ -47,6 +47,9 @@ public class HospitalEncounterDetailDto : HospitalEncounterSummaryDto
     public string EncounterType { get; set; } = string.Empty;
     public string? DiagnosisCode { get; set; }
     public string? DiagnosisType { get; set; }
+    public DateTime? ClinicalNoteAuthoredAtLocal { get; set; }
+    public DateTime? ClinicalNoteSignedAtLocal { get; set; }
+    public bool IsClinicalNoteSigned { get; set; }
     public string? Subjective { get; set; }
     public string? Objective { get; set; }
     public string? Assessment { get; set; }
@@ -59,6 +62,19 @@ public class HospitalEncounterDetailDto : HospitalEncounterSummaryDto
     public int? SystolicBp { get; set; }
     public int? DiastolicBp { get; set; }
     public decimal? OxygenSaturation { get; set; }
+    public List<HospitalEncounterAttachmentDto> Attachments { get; set; } = new();
+}
+
+public class HospitalEncounterAttachmentDto
+{
+    public Guid AttachmentId { get; set; }
+    public string DocumentType { get; set; } = string.Empty;
+    public string FileName { get; set; } = string.Empty;
+    public string ContentType { get; set; } = string.Empty;
+    public string DocumentUri { get; set; } = string.Empty;
+    public DateTime UploadedAtLocal { get; set; }
+    public Guid? UploadedByUserId { get; set; }
+    public string? UploadedByUsername { get; set; }
 }
 
 public class HospitalEncounterEligibleAppointmentDto
@@ -140,4 +156,21 @@ public class UpdateHospitalEncounterDto
     public int? SystolicBp { get; set; }
     public int? DiastolicBp { get; set; }
     public decimal? OxygenSaturation { get; set; }
+}
+
+public class AddHospitalEncounterAttachmentDto
+{
+    [Required]
+    [MaxLength(255)]
+    public string FileName { get; set; } = string.Empty;
+
+    [MaxLength(50)]
+    public string DocumentType { get; set; } = "EncounterAttachment";
+
+    [MaxLength(150)]
+    public string? ContentType { get; set; }
+
+    [Required]
+    [MaxLength(1000)]
+    public string DocumentUri { get; set; } = string.Empty;
 }

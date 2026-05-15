@@ -31,6 +31,7 @@ public interface IHospitalEncounterRepository
     Task UpdateVitalSignAsync(HospitalEncounterVitalSignUpdateCommand command, CancellationToken ct = default);
     Task UpdateDiagnosisAsync(HospitalEncounterDiagnosisUpdateCommand command, CancellationToken ct = default);
     Task UpdateClinicalNoteAsync(HospitalEncounterClinicalNoteUpdateCommand command, CancellationToken ct = default);
+    Task AddAttachmentAsync(HospitalEncounterAttachmentCreateCommand command, CancellationToken ct = default);
     Task AddOutboxMessageAsync(HospitalEncounterOutboxCreateCommand command, CancellationToken ct = default);
     Task SaveChangesAsync(CancellationToken ct = default);
 }
@@ -70,10 +71,25 @@ public class HospitalEncounterAggregateSnapshot
     public string? DiagnosisCode { get; set; }
     public string? DiagnosisName { get; set; }
     public Guid? ClinicalNoteId { get; set; }
+    public DateTime? ClinicalNoteAuthoredAtUtc { get; set; }
+    public DateTime? ClinicalNoteSignedAtUtc { get; set; }
     public string? Subjective { get; set; }
     public string? Objective { get; set; }
     public string? Assessment { get; set; }
     public string? CarePlan { get; set; }
+    public HospitalEncounterAttachmentSnapshot[] Attachments { get; set; } = Array.Empty<HospitalEncounterAttachmentSnapshot>();
+}
+
+public class HospitalEncounterAttachmentSnapshot
+{
+    public Guid AttachmentId { get; set; }
+    public string DocumentType { get; set; } = string.Empty;
+    public string FileName { get; set; } = string.Empty;
+    public string ContentType { get; set; } = string.Empty;
+    public string DocumentUri { get; set; } = string.Empty;
+    public DateTime UploadedAtUtc { get; set; }
+    public Guid? UploadedByUserId { get; set; }
+    public string? UploadedByUsername { get; set; }
 }
 
 public class HospitalEncounterAppointmentSnapshot
@@ -197,6 +213,18 @@ public class HospitalEncounterClinicalNoteUpdateCommand
     public Guid? AuthoredByUserId { get; set; }
     public DateTime AuthoredAtUtc { get; set; }
     public DateTime? SignedAtUtc { get; set; }
+}
+
+public class HospitalEncounterAttachmentCreateCommand
+{
+    public Guid AttachmentId { get; set; }
+    public Guid EncounterId { get; set; }
+    public string DocumentType { get; set; } = string.Empty;
+    public string FileName { get; set; } = string.Empty;
+    public string ContentType { get; set; } = string.Empty;
+    public string DocumentUri { get; set; } = string.Empty;
+    public DateTime UploadedAtUtc { get; set; }
+    public Guid? UploadedByUserId { get; set; }
 }
 
 public class HospitalEncounterOutboxCreateCommand

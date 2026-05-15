@@ -7,7 +7,13 @@ namespace ERMSystem.Application.Interfaces
 {
     public interface IHospitalNotificationDeliveryService
     {
-        Task<NotificationDeliveryListDto> GetDeliveriesAsync(string? status, int pageNumber, int pageSize, CancellationToken ct = default);
-        Task<bool> RetryDeliveryAsync(Guid deliveryId, CancellationToken ct = default);
+        Task<NotificationDeliveryListDto> GetDeliveriesAsync(
+            string? status,
+            string? channelCode,
+            string? recipient,
+            int pageNumber,
+            int pageSize,
+            CancellationToken ct = default);
+        Task<NotificationDeliveryRetryResult> RetryDeliveryAsync(Guid deliveryId, CancellationToken ct = default);
     }
 }

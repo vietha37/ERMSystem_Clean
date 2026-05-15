@@ -17,6 +17,7 @@ public static class AppPermissions
         public const string Create = "patients.create";
         public const string Update = "patients.update";
         public const string Delete = "patients.delete";
+        public const string Merge = "patients.merge";
         public const string SelfRead = "patients.self.read";
     }
 
@@ -96,6 +97,7 @@ public static class AppPermissions
         public const string Read = "hospitalbilling.read";
         public const string Create = "hospitalbilling.create";
         public const string CollectPayment = "hospitalbilling.collectpayment";
+        public const string Refund = "hospitalbilling.refund";
     }
 
     public static class HospitalNotifications
@@ -121,6 +123,7 @@ public static class AppPermissions
         Patients.Create,
         Patients.Update,
         Patients.Delete,
+        Patients.Merge,
         Patients.SelfRead,
         AdminUsers.Read,
         AdminUsers.Create,
@@ -160,6 +163,7 @@ public static class AppPermissions
         HospitalBilling.Read,
         HospitalBilling.Create,
         HospitalBilling.CollectPayment,
+        HospitalBilling.Refund,
         HospitalNotifications.Read,
         HospitalNotifications.Retry,
         Notifications.Read,
@@ -202,6 +206,7 @@ public static class AppPermissions
                 Patients.Create,
                 Patients.Update,
                 Patients.Delete,
+                Patients.Merge,
                 Appointments.Read,
                 Appointments.Create,
                 Appointments.Update,
@@ -232,6 +237,7 @@ public static class AppPermissions
                 HospitalBilling.Read,
                 HospitalBilling.Create,
                 HospitalBilling.CollectPayment,
+                HospitalBilling.Refund,
                 HospitalNotifications.Read,
                 HospitalNotifications.Retry
                 ,

@@ -26,6 +26,8 @@ builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection("Ra
 builder.Services.Configure<OutboxPublisherOptions>(builder.Configuration.GetSection("OutboxPublisher"));
 builder.Services.Configure<NotificationConsumerOptions>(builder.Configuration.GetSection("NotificationConsumer"));
 builder.Services.Configure<NotificationDispatchOptions>(builder.Configuration.GetSection("NotificationDispatch"));
+builder.Services.AddSingleton<ApiMetricsCollector>();
+builder.Services.AddSingleton<IBusinessMetricsRecorder, BusinessMetricsRecorder>();
 
 // ── Database ──────────────────────────────────────────────────────────────────
 builder.Services.AddDbContext<ERMSystem.Infrastructure.Data.ApplicationDbContext>(options =>
@@ -324,6 +326,13 @@ app.MapGet("/health/live", () => Results.Ok(new
     service = "ERMSystem.API",
     utcNow = DateTime.UtcNow
 })).AllowAnonymous();
+
+app.MapGet("/metrics", (ApiMetricsCollector collector) =>
+{
+    return Results.Text(
+        collector.RenderPrometheus(),
+        "text/plain; version=0.0.4; charset=utf-8");
+}).AllowAnonymous();
 
 app.MapHealthChecks("/health/ready", new HealthCheckOptions
 {

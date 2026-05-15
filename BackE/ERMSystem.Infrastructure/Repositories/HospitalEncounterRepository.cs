@@ -118,6 +118,8 @@ public class HospitalEncounterRepository : IHospitalEncounterRepository
             .Include(x => x.VitalSigns)
             .Include(x => x.Diagnoses)
             .Include(x => x.ClinicalNotes)
+            .Include(x => x.Attachments)
+                .ThenInclude(x => x.UploadedByUser)
             .FirstOrDefaultAsync(x => x.Id == encounterId, ct);
 
         if (entity == null)
@@ -167,10 +169,27 @@ public class HospitalEncounterRepository : IHospitalEncounterRepository
             DiagnosisCode = primaryDiagnosis?.DiagnosisCode,
             DiagnosisName = primaryDiagnosis?.DiagnosisName,
             ClinicalNoteId = latestNote?.Id,
+            ClinicalNoteAuthoredAtUtc = latestNote?.AuthoredAtUtc,
+            ClinicalNoteSignedAtUtc = latestNote?.SignedAtUtc,
             Subjective = latestNote?.Subjective,
             Objective = latestNote?.Objective,
             Assessment = latestNote?.Assessment,
-            CarePlan = latestNote?.CarePlan
+            CarePlan = latestNote?.CarePlan,
+            Attachments = entity.Attachments
+                .OrderByDescending(x => x.UploadedAtUtc)
+                .ThenByDescending(x => x.Id)
+                .Select(x => new HospitalEncounterAttachmentSnapshot
+                {
+                    AttachmentId = x.Id,
+                    DocumentType = x.DocumentType,
+                    FileName = x.FileName,
+                    ContentType = x.MimeType ?? "application/octet-stream",
+                    DocumentUri = x.StorageUri,
+                    UploadedAtUtc = x.UploadedAtUtc,
+                    UploadedByUserId = x.UploadedByUserId,
+                    UploadedByUsername = x.UploadedByUser != null ? x.UploadedByUser.Username : null
+                })
+                .ToArray()
         };
     }
 
@@ -410,6 +429,23 @@ public class HospitalEncounterRepository : IHospitalEncounterRepository
         entity.AuthoredByUserId = command.AuthoredByUserId;
         entity.AuthoredAtUtc = command.AuthoredAtUtc;
         entity.SignedAtUtc = command.SignedAtUtc;
+    }
+
+    public Task AddAttachmentAsync(HospitalEncounterAttachmentCreateCommand command, CancellationToken ct = default)
+    {
+        _hospitalDbContext.EncounterAttachments.Add(new HospitalEncounterAttachmentEntity
+        {
+            Id = command.AttachmentId,
+            EncounterId = command.EncounterId,
+            DocumentType = command.DocumentType,
+            FileName = command.FileName,
+            MimeType = command.ContentType,
+            StorageUri = command.DocumentUri,
+            UploadedAtUtc = command.UploadedAtUtc,
+            UploadedByUserId = command.UploadedByUserId
+        });
+
+        return Task.CompletedTask;
     }
 
     public Task AddOutboxMessageAsync(HospitalEncounterOutboxCreateCommand command, CancellationToken ct = default)

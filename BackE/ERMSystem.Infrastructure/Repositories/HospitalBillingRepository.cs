@@ -359,7 +359,7 @@ public class HospitalBillingRepository : IHospitalBillingRepository
     private static HospitalInvoiceSummaryDto MapSummary(HospitalInvoiceEntity invoice)
     {
         var paidAmount = invoice.Payments
-            .Where(x => x.PaymentStatus == "Captured")
+            .Where(x => x.PaymentStatus is "Captured" or "Refunded")
             .Sum(x => x.Amount);
 
         return new HospitalInvoiceSummaryDto
@@ -394,6 +394,8 @@ public class HospitalBillingRepository : IHospitalBillingRepository
             PatientId = invoice.PatientId,
             PatientName = invoice.Patient.FullName,
             MedicalRecordNumber = invoice.Patient.MedicalRecordNumber,
+            PatientPhone = invoice.Patient.Phone,
+            PatientEmail = invoice.Patient.Email,
             EncounterId = invoice.EncounterId,
             EncounterNumber = invoice.Encounter?.EncounterNumber,
             DoctorName = invoice.Encounter?.DoctorProfile.StaffProfile.FullName,

@@ -31,14 +31,27 @@ namespace ERMSystem.Application.Services
         {
             var patientsCount = await _patientRepository.GetTotalCountAsync(ct);
             var todayAppointmentsCount = await _appointmentRepository.GetAppointmentsTodayCountAsync(ct);
-            var completedAppointmentsCount = await _appointmentRepository.GetCompletedAppointmentsCountAsync(ct);
+            var pendingAppointmentsCount = await _appointmentRepository.GetPendingAppointmentsTodayCountAsync(ct);
+            var completedAppointmentsCount = await _appointmentRepository.GetCompletedAppointmentsTodayCountAsync(ct);
+            var cancelledAppointmentsCount = await _appointmentRepository.GetCancelledAppointmentsTodayCountAsync(ct);
             var topDiagnoses = await _medicalRecordRepository.GetTopDiagnosesAsync(5, ct);
+
+            var completionRate = todayAppointmentsCount == 0
+                ? 0m
+                : Math.Round((decimal)completedAppointmentsCount * 100m / todayAppointmentsCount, 2);
+            var cancellationRate = todayAppointmentsCount == 0
+                ? 0m
+                : Math.Round((decimal)cancelledAppointmentsCount * 100m / todayAppointmentsCount, 2);
 
             return new DashboardStatsDto
             {
                 TotalPatients = patientsCount,
                 AppointmentsToday = todayAppointmentsCount,
+                PendingAppointments = pendingAppointmentsCount,
                 CompletedAppointments = completedAppointmentsCount,
+                CancelledAppointments = cancelledAppointmentsCount,
+                CompletionRatePercent = completionRate,
+                CancellationRatePercent = cancellationRate,
                 TopDiagnoses = topDiagnoses
             };
         }
@@ -86,6 +99,7 @@ namespace ERMSystem.Application.Services
             var previousTo = effectiveFrom.AddDays(-1);
 
             var patientMap = await _patientRepository.GetCreatedCountByDayAsync(previousFrom, ct);
+            var appointmentMap = await _appointmentRepository.GetScheduledCountByDayAsync(previousFrom, ct);
             var prescriptionMap = await _prescriptionRepository.GetCreatedCountByDayAsync(previousFrom, ct);
 
             var points = new List<DashboardTrendPointDto>(dayCount);
@@ -93,19 +107,23 @@ namespace ERMSystem.Application.Services
             {
                 var date = effectiveFrom.AddDays(i);
                 patientMap.TryGetValue(date, out var patients);
+                appointmentMap.TryGetValue(date, out var appointments);
                 prescriptionMap.TryGetValue(date, out var prescriptions);
 
                 points.Add(new DashboardTrendPointDto
                 {
                     Label = date.ToString("dd/MM"),
                     PatientsCount = patients,
+                    AppointmentsCount = appointments,
                     PrescriptionsCount = prescriptions
                 });
             }
 
             var currentPatientsTotal = points.Sum(x => x.PatientsCount);
+            var currentAppointmentsTotal = points.Sum(x => x.AppointmentsCount);
             var currentPrescriptionsTotal = points.Sum(x => x.PrescriptionsCount);
             var previousPatientsTotal = SumByRange(patientMap, previousFrom, previousTo);
+            var previousAppointmentsTotal = SumByRange(appointmentMap, previousFrom, previousTo);
             var previousPrescriptionsTotal = SumByRange(prescriptionMap, previousFrom, previousTo);
 
             return new DashboardTrendsDto
@@ -114,8 +132,10 @@ namespace ERMSystem.Application.Services
                 FromDate = effectiveFrom,
                 ToDate = effectiveTo,
                 CurrentPatientsTotal = currentPatientsTotal,
+                CurrentAppointmentsTotal = currentAppointmentsTotal,
                 CurrentPrescriptionsTotal = currentPrescriptionsTotal,
                 PreviousPatientsTotal = previousPatientsTotal,
+                PreviousAppointmentsTotal = previousAppointmentsTotal,
                 PreviousPrescriptionsTotal = previousPrescriptionsTotal,
                 Points = points
             };
@@ -148,9 +168,11 @@ namespace ERMSystem.Application.Services
             var previousTo = effectiveFrom.AddMonths(-1);
 
             var patientDailyMap = await _patientRepository.GetCreatedCountByDayAsync(previousFrom, ct);
+            var appointmentDailyMap = await _appointmentRepository.GetScheduledCountByDayAsync(previousFrom, ct);
             var prescriptionDailyMap = await _prescriptionRepository.GetCreatedCountByDayAsync(previousFrom, ct);
 
             var patientMonthlyMap = GroupByMonth(patientDailyMap);
+            var appointmentMonthlyMap = GroupByMonth(appointmentDailyMap);
             var prescriptionMonthlyMap = GroupByMonth(prescriptionDailyMap);
 
             var points = new List<DashboardTrendPointDto>(monthCount);
@@ -158,19 +180,23 @@ namespace ERMSystem.Application.Services
             {
                 var month = effectiveFrom.AddMonths(i);
                 patientMonthlyMap.TryGetValue(month, out var patients);
+                appointmentMonthlyMap.TryGetValue(month, out var appointments);
                 prescriptionMonthlyMap.TryGetValue(month, out var prescriptions);
 
                 points.Add(new DashboardTrendPointDto
                 {
                     Label = month.ToString("MM/yyyy"),
                     PatientsCount = patients,
+                    AppointmentsCount = appointments,
                     PrescriptionsCount = prescriptions
                 });
             }
 
             var currentPatientsTotal = points.Sum(x => x.PatientsCount);
+            var currentAppointmentsTotal = points.Sum(x => x.AppointmentsCount);
             var currentPrescriptionsTotal = points.Sum(x => x.PrescriptionsCount);
             var previousPatientsTotal = SumByMonthRange(patientMonthlyMap, previousFrom, previousTo);
+            var previousAppointmentsTotal = SumByMonthRange(appointmentMonthlyMap, previousFrom, previousTo);
             var previousPrescriptionsTotal = SumByMonthRange(prescriptionMonthlyMap, previousFrom, previousTo);
 
             return new DashboardTrendsDto
@@ -179,8 +205,10 @@ namespace ERMSystem.Application.Services
                 FromDate = effectiveFrom,
                 ToDate = effectiveTo,
                 CurrentPatientsTotal = currentPatientsTotal,
+                CurrentAppointmentsTotal = currentAppointmentsTotal,
                 CurrentPrescriptionsTotal = currentPrescriptionsTotal,
                 PreviousPatientsTotal = previousPatientsTotal,
+                PreviousAppointmentsTotal = previousAppointmentsTotal,
                 PreviousPrescriptionsTotal = previousPrescriptionsTotal,
                 Points = points
             };

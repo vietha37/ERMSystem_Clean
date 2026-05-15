@@ -8,6 +8,8 @@ $env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE = "1"
 
 $apiProj = "D:\ERMSystem\BackE\ERMSystem.API\ERMSystem.API.csproj"
 $baseUrl = "http://localhost:5219"
+$hospitalSqlServer = "VietHa\MSSQLSERVER01"
+$hospitalDb = "ERMSystemHospitalDb"
 
 $startInfo = New-Object System.Diagnostics.ProcessStartInfo
 $startInfo.FileName = "dotnet"
@@ -63,9 +65,41 @@ try {
     throw "Khong co notification delivery nao de smoke test."
   }
 
-  $delivery = @($allDeliveries.items | Where-Object { $_.deliveryStatus -ne "Queued" }) | Select-Object -First 1
+  $invalidDelivery = @($allDeliveries.items | Where-Object { $_.deliveryStatus -notin @("Failed", "Skipped", "Queued") }) | Select-Object -First 1
+  if ($null -ne $invalidDelivery) {
+    try {
+      Invoke-RestMethod `
+        -Method Post `
+        -Uri "$baseUrl/api/hospital-notification-deliveries/$($invalidDelivery.id)/retry" `
+        -Headers $headers | Out-Null
+      throw "Retry delivery khong hop le dang le phai tra ve 409."
+    }
+    catch {
+      if (-not $_.Exception.Response -or $_.Exception.Response.StatusCode.value__ -ne 409) {
+        throw
+      }
+    }
+  }
+
+  $delivery = @($allDeliveries.items | Where-Object { $_.deliveryStatus -in @("Failed", "Skipped") }) | Select-Object -First 1
   if ($null -eq $delivery) {
-    $delivery = @($allDeliveries.items) | Select-Object -First 1
+    $delivery = @($allDeliveries.items | Where-Object { $_.deliveryStatus -notin @("Queued") }) | Select-Object -First 1
+    if ($null -eq $delivery) {
+      throw "Khong co delivery nao de force sang Failed phuc vu smoke test."
+    }
+
+    $deliveryIdSql = [string]$delivery.id
+    & sqlcmd -S $hospitalSqlServer -E -d $hospitalDb -Q @"
+SET NOCOUNT ON;
+UPDATE [notification].[NotificationDeliveries]
+SET [DeliveryStatus] = N'Failed',
+    [ErrorMessage] = N'Smoke forced failure',
+    [DeliveredAtUtc] = NULL,
+    [ProviderMessageId] = NULL
+WHERE [Id] = '$deliveryIdSql';
+"@ | Out-Null
+
+    $delivery.deliveryStatus = "Failed"
   }
 
   $preRetryStatus = $delivery.deliveryStatus
@@ -76,7 +110,7 @@ try {
 
   $queuedDeliveries = Invoke-RestMethod `
     -Method Get `
-    -Uri "$baseUrl/api/hospital-notification-deliveries?status=Queued&pageNumber=1&pageSize=20" `
+    -Uri "$baseUrl/api/hospital-notification-deliveries?status=Queued&channelCode=$($delivery.channelCode)&recipient=$([uri]::EscapeDataString($delivery.recipient))&pageNumber=1&pageSize=20" `
     -Headers $headers
 
   $queuedItem = @($queuedDeliveries.items | Where-Object { $_.id -eq $delivery.id }) | Select-Object -First 1

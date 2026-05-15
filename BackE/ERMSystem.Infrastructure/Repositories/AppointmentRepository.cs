@@ -49,6 +49,42 @@ namespace ERMSystem.Infrastructure.Repositories
                 .Where(a => a.Status == "Completed")
                 .CountAsync(ct);
 
+        public async Task<int> GetPendingAppointmentsTodayCountAsync(CancellationToken ct = default)
+        {
+            var today = DateTime.UtcNow.Date;
+            return await _context.Appointments
+                .Where(a => a.AppointmentDate.Date == today && a.Status == "Pending")
+                .CountAsync(ct);
+        }
+
+        public async Task<int> GetCompletedAppointmentsTodayCountAsync(CancellationToken ct = default)
+        {
+            var today = DateTime.UtcNow.Date;
+            return await _context.Appointments
+                .Where(a => a.AppointmentDate.Date == today && a.Status == "Completed")
+                .CountAsync(ct);
+        }
+
+        public async Task<int> GetCancelledAppointmentsTodayCountAsync(CancellationToken ct = default)
+        {
+            var today = DateTime.UtcNow.Date;
+            return await _context.Appointments
+                .Where(a => a.AppointmentDate.Date == today && a.Status == "Cancelled")
+                .CountAsync(ct);
+        }
+
+        public async Task<Dictionary<DateTime, int>> GetScheduledCountByDayAsync(
+            DateTime fromUtc,
+            CancellationToken ct = default)
+        {
+            return await _context.Appointments
+                .AsNoTracking()
+                .Where(a => a.AppointmentDate >= fromUtc)
+                .GroupBy(a => a.AppointmentDate.Date)
+                .Select(g => new { Date = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Date, x => x.Count, ct);
+        }
+
         public async Task<List<Appointment>> GetByDateRangeAsync(DateTime fromUtc, DateTime toUtc, CancellationToken ct = default)
             => await _context.Appointments
                 .Include(a => a.Patient)

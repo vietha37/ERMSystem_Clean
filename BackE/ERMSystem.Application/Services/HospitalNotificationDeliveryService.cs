@@ -15,10 +15,16 @@ namespace ERMSystem.Application.Services
             _repository = repository;
         }
 
-        public Task<NotificationDeliveryListDto> GetDeliveriesAsync(string? status, int pageNumber, int pageSize, CancellationToken ct = default)
-            => _repository.GetDeliveriesAsync(status, pageNumber, pageSize, ct);
+        public Task<NotificationDeliveryListDto> GetDeliveriesAsync(
+            string? status,
+            string? channelCode,
+            string? recipient,
+            int pageNumber,
+            int pageSize,
+            CancellationToken ct = default)
+            => _repository.GetDeliveriesAsync(status, channelCode, recipient, pageNumber, pageSize, ct);
 
-        public Task<bool> RetryDeliveryAsync(Guid deliveryId, CancellationToken ct = default)
+        public Task<NotificationDeliveryRetryResult> RetryDeliveryAsync(Guid deliveryId, CancellationToken ct = default)
             => _repository.RetryDeliveryAsync(deliveryId, ct);
     }
 }

@@ -41,6 +41,34 @@ namespace ERMSystem.Application.Services
             return patient == null ? null : MapToDto(patient);
         }
 
+        public async Task<IReadOnlyCollection<PotentialDuplicatePatientDto>> GetPotentialDuplicatesAsync(Guid patientId, CancellationToken ct = default)
+        {
+            var patient = await _patientRepository.GetByIdAsync(patientId, ct);
+            if (patient == null)
+            {
+                throw new KeyNotFoundException($"Patient with ID {patientId} not found.");
+            }
+
+            var candidates = await _patientRepository.GetPotentialDuplicateCandidatesAsync(
+                patient.Id,
+                patient.FullName,
+                patient.DateOfBirth,
+                patient.Phone,
+                patient.EmergencyContactPhone,
+                ct);
+
+            return candidates
+                .Select(candidate => new PotentialDuplicatePatientDto
+                {
+                    Patient = MapToDto(candidate),
+                    MatchReasons = BuildMatchReasons(patient, candidate)
+                })
+                .Where(x => x.MatchReasons.Count > 0)
+                .OrderByDescending(x => x.MatchReasons.Count)
+                .ThenBy(x => x.Patient.FullName)
+                .ToArray();
+        }
+
         public async Task<PatientDto> CreatePatientAsync(CreatePatientDto dto, CancellationToken ct = default)
         {
             var patient = new Patient
@@ -80,11 +108,79 @@ namespace ERMSystem.Application.Services
             await _patientRepository.UpdateAsync(patient, ct);
         }
 
+        public async Task<MergePatientsResultDto> MergePatientsAsync(MergePatientsRequestDto request, CancellationToken ct = default)
+        {
+            if (request.SourcePatientId == request.TargetPatientId)
+            {
+                throw new InvalidOperationException("Source patient and target patient must be different.");
+            }
+
+            var sourcePatient = await _patientRepository.GetByIdAsync(request.SourcePatientId, ct);
+            if (sourcePatient == null)
+            {
+                throw new KeyNotFoundException($"Source patient with ID {request.SourcePatientId} not found.");
+            }
+
+            var targetPatient = await _patientRepository.GetByIdAsync(request.TargetPatientId, ct);
+            if (targetPatient == null)
+            {
+                throw new KeyNotFoundException($"Target patient with ID {request.TargetPatientId} not found.");
+            }
+
+            if (sourcePatient.AppUserId.HasValue &&
+                targetPatient.AppUserId.HasValue &&
+                sourcePatient.AppUserId != targetPatient.AppUserId)
+            {
+                throw new InvalidOperationException("Cannot merge patients that are linked to different app users.");
+            }
+
+            var appUserLinkMoved = false;
+            if (!targetPatient.AppUserId.HasValue && sourcePatient.AppUserId.HasValue)
+            {
+                targetPatient.AppUserId = sourcePatient.AppUserId;
+                appUserLinkMoved = true;
+            }
+
+            targetPatient.FullName = SelectPreferredRequiredValue(targetPatient.FullName, sourcePatient.FullName);
+            targetPatient.Phone = SelectPreferredRequiredValue(targetPatient.Phone, sourcePatient.Phone);
+            targetPatient.Address = SelectPreferredRequiredValue(targetPatient.Address, sourcePatient.Address);
+            targetPatient.Gender = SelectPreferredRequiredValue(targetPatient.Gender, sourcePatient.Gender);
+            targetPatient.EmergencyContactName = SelectPreferredValue(targetPatient.EmergencyContactName, sourcePatient.EmergencyContactName);
+            targetPatient.EmergencyContactPhone = SelectPreferredValue(targetPatient.EmergencyContactPhone, sourcePatient.EmergencyContactPhone);
+            targetPatient.EmergencyContactRelationship = SelectPreferredValue(targetPatient.EmergencyContactRelationship, sourcePatient.EmergencyContactRelationship);
+            if (targetPatient.DateOfBirth == default && sourcePatient.DateOfBirth != default)
+            {
+                targetPatient.DateOfBirth = sourcePatient.DateOfBirth;
+            }
+
+            var reassignedAppointmentCount = await _patientRepository.ReassignAppointmentsAsync(
+                sourcePatient.Id,
+                targetPatient.Id,
+                ct);
+
+            await _patientRepository.MergeAsync(sourcePatient, targetPatient, ct);
+
+            return new MergePatientsResultDto
+            {
+                SourcePatientId = sourcePatient.Id,
+                TargetPatientId = targetPatient.Id,
+                ReassignedAppointmentCount = reassignedAppointmentCount,
+                AppUserLinkMoved = appUserLinkMoved
+            };
+        }
+
         public async Task DeletePatientAsync(Guid id, CancellationToken ct = default)
         {
             var patient = await _patientRepository.GetByIdAsync(id, ct);
             if (patient == null)
                 throw new KeyNotFoundException($"Patient with ID {id} not found.");
+
+            var appointmentCount = await _patientRepository.GetAppointmentCountAsync(id, ct);
+            if (appointmentCount > 0)
+            {
+                throw new InvalidOperationException(
+                    $"Cannot delete patient with ID {id} because there are {appointmentCount} linked appointments.");
+            }
 
             await _patientRepository.DeleteAsync(patient, ct);
         }
@@ -102,5 +198,54 @@ namespace ERMSystem.Application.Services
             EmergencyContactRelationship = p.EmergencyContactRelationship,
             CreatedAt = p.CreatedAt
         };
+
+        private static IReadOnlyCollection<string> BuildMatchReasons(Patient source, Patient candidate)
+        {
+            var reasons = new List<string>();
+
+            if (AreSamePhone(source.Phone, candidate.Phone))
+            {
+                reasons.Add("same_phone");
+            }
+
+            if (AreSameNameAndDob(source, candidate))
+            {
+                reasons.Add("same_name_and_dob");
+            }
+
+            if (!string.IsNullOrWhiteSpace(source.EmergencyContactPhone) &&
+                AreSamePhone(source.EmergencyContactPhone, candidate.EmergencyContactPhone))
+            {
+                reasons.Add("same_emergency_contact_phone");
+            }
+
+            return reasons
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+        }
+
+        private static bool AreSameNameAndDob(Patient source, Patient candidate)
+            => string.Equals(
+                   NormalizeText(source.FullName),
+                   NormalizeText(candidate.FullName),
+                   StringComparison.Ordinal)
+               && source.DateOfBirth.Date == candidate.DateOfBirth.Date;
+
+        private static bool AreSamePhone(string? left, string? right)
+            => !string.IsNullOrWhiteSpace(left)
+               && !string.IsNullOrWhiteSpace(right)
+               && string.Equals(NormalizePhone(left), NormalizePhone(right), StringComparison.Ordinal);
+
+        private static string NormalizePhone(string value)
+            => new string(value.Where(char.IsDigit).ToArray());
+
+        private static string NormalizeText(string value)
+            => (value ?? string.Empty).Trim().ToUpperInvariant();
+
+        private static string SelectPreferredRequiredValue(string currentValue, string fallbackValue)
+            => string.IsNullOrWhiteSpace(currentValue) ? fallbackValue : currentValue;
+
+        private static string? SelectPreferredValue(string? currentValue, string? fallbackValue)
+            => string.IsNullOrWhiteSpace(currentValue) ? fallbackValue : currentValue;
     }
 }

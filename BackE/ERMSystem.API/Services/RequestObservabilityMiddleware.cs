@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Options;
 
 namespace ERMSystem.API.Services;
@@ -8,15 +9,18 @@ public class RequestObservabilityMiddleware
     private readonly RequestDelegate _next;
     private readonly ILogger<RequestObservabilityMiddleware> _logger;
     private readonly RequestObservabilityOptions _options;
+    private readonly ApiMetricsCollector _metricsCollector;
 
     public RequestObservabilityMiddleware(
         RequestDelegate next,
         ILogger<RequestObservabilityMiddleware> logger,
-        IOptions<RequestObservabilityOptions> options)
+        IOptions<RequestObservabilityOptions> options,
+        ApiMetricsCollector metricsCollector)
     {
         _next = next;
         _logger = logger;
         _options = options.Value;
+        _metricsCollector = metricsCollector;
     }
 
     public async Task Invoke(HttpContext context)
@@ -30,6 +34,12 @@ public class RequestObservabilityMiddleware
         context.Response.Headers[correlationHeaderName] = correlationId;
 
         var stopwatch = Stopwatch.StartNew();
+        var shouldCollectMetrics = ShouldCollectMetrics(context.Request.Path);
+
+        if (shouldCollectMetrics)
+        {
+            _metricsCollector.OnRequestStarted();
+        }
 
         using var scope = _logger.BeginScope(new Dictionary<string, object?>
         {
@@ -49,10 +59,22 @@ public class RequestObservabilityMiddleware
             var elapsedMs = stopwatch.ElapsedMilliseconds;
             var statusCode = context.Response.StatusCode;
             var logLevel = ResolveLogLevel(statusCode, elapsedMs);
+            var routeLabel = ResolveRouteLabel(context);
+            var isSlowRequest = elapsedMs >= _options.SlowRequestThresholdMs;
+
+            if (shouldCollectMetrics)
+            {
+                _metricsCollector.OnRequestCompleted(
+                    context.Request.Method,
+                    routeLabel,
+                    statusCode,
+                    elapsedMs,
+                    isSlowRequest);
+            }
 
             _logger.Log(
                 logLevel,
-                "HTTP {Method} {Path} responded {StatusCode} in {ElapsedMs} ms",
+                "HTTP {HttpMethod} {RequestPath} responded {ResponseStatusCode} in {ElapsedMilliseconds} ms",
                 context.Request.Method,
                 context.Request.Path.Value,
                 statusCode,
@@ -72,6 +94,21 @@ public class RequestObservabilityMiddleware
         }
 
         return Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N");
+    }
+
+    private static bool ShouldCollectMetrics(PathString path)
+    {
+        return !path.StartsWithSegments("/metrics", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string ResolveRouteLabel(HttpContext context)
+    {
+        if (context.GetEndpoint() is RouteEndpoint routeEndpoint)
+        {
+            return routeEndpoint.RoutePattern.RawText ?? context.Request.Path.Value ?? "/";
+        }
+
+        return context.Request.Path.Value ?? "/";
     }
 
     private LogLevel ResolveLogLevel(int statusCode, long elapsedMs)

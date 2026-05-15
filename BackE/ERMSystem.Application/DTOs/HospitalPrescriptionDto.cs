@@ -76,7 +76,19 @@ public class HospitalPrescriptionDetailDto : HospitalPrescriptionSummaryDto
 {
     public Guid? LatestDispensingId { get; set; }
     public string? DispensingNotes { get; set; }
+    public List<string> Warnings { get; set; } = new();
+    public List<HospitalPrescriptionDispensingHistoryDto> DispensingHistory { get; set; } = new();
     public List<HospitalPrescriptionItemDto> Items { get; set; } = new();
+}
+
+public class HospitalPrescriptionDispensingHistoryDto
+{
+    public Guid DispensingId { get; set; }
+    public string DispensingStatus { get; set; } = string.Empty;
+    public DateTime? DispensedAtLocal { get; set; }
+    public Guid? DispensedByUserId { get; set; }
+    public string? DispensedByUsername { get; set; }
+    public string? Notes { get; set; }
 }
 
 public class HospitalPrescriptionEligibleEncounterDto

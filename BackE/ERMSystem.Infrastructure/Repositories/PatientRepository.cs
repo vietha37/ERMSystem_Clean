@@ -73,6 +73,46 @@ namespace ERMSystem.Infrastructure.Repositories
         public async Task<Patient?> GetByAppUserIdAsync(Guid appUserId, CancellationToken ct = default)
             => await _context.Patients.FirstOrDefaultAsync(p => p.AppUserId == appUserId, ct);
 
+        public async Task<int> GetAppointmentCountAsync(Guid patientId, CancellationToken ct = default)
+            => await _context.Appointments.CountAsync(a => a.PatientId == patientId, ct);
+
+        public async Task<IReadOnlyCollection<Patient>> GetPotentialDuplicateCandidatesAsync(
+            Guid patientId,
+            string fullName,
+            DateTime dateOfBirth,
+            string phone,
+            string? emergencyContactPhone,
+            CancellationToken ct = default)
+        {
+            var query = _context.Patients
+                .AsNoTracking()
+                .Where(p => p.Id != patientId);
+
+            query = query.Where(p =>
+                p.Phone == phone ||
+                (p.FullName == fullName && p.DateOfBirth == dateOfBirth) ||
+                (!string.IsNullOrWhiteSpace(emergencyContactPhone) && p.EmergencyContactPhone == emergencyContactPhone));
+
+            return await query
+                .OrderBy(p => p.FullName)
+                .ThenBy(p => p.CreatedAt)
+                .ToListAsync(ct);
+        }
+
+        public async Task<int> ReassignAppointmentsAsync(Guid sourcePatientId, Guid targetPatientId, CancellationToken ct = default)
+        {
+            var appointments = await _context.Appointments
+                .Where(a => a.PatientId == sourcePatientId)
+                .ToListAsync(ct);
+
+            foreach (var appointment in appointments)
+            {
+                appointment.PatientId = targetPatientId;
+            }
+
+            return appointments.Count;
+        }
+
         public async Task AddAsync(Patient patient, CancellationToken ct = default)
         {
             await _context.Patients.AddAsync(patient, ct);
@@ -82,6 +122,13 @@ namespace ERMSystem.Infrastructure.Repositories
         public async Task UpdateAsync(Patient patient, CancellationToken ct = default)
         {
             _context.Patients.Update(patient);
+            await _context.SaveChangesAsync(ct);
+        }
+
+        public async Task MergeAsync(Patient sourcePatient, Patient targetPatient, CancellationToken ct = default)
+        {
+            _context.Patients.Update(targetPatient);
+            _context.Patients.Remove(sourcePatient);
             await _context.SaveChangesAsync(ct);
         }
 

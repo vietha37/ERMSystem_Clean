@@ -75,13 +75,18 @@ export type Prescription = {
 export type DashboardStats = {
   totalPatients: number;
   appointmentsToday: number;
+  pendingAppointments: number;
   completedAppointments: number;
+  cancelledAppointments: number;
+  completionRatePercent: number;
+  cancellationRatePercent: number;
   topDiagnoses: Record<string, number>;
 };
 
 export type DashboardTrendPoint = {
   label: string;
   patientsCount: number;
+  appointmentsCount: number;
   prescriptionsCount: number;
 };
 
@@ -90,8 +95,10 @@ export type DashboardTrends = {
   fromDate: string;
   toDate: string;
   currentPatientsTotal: number;
+  currentAppointmentsTotal: number;
   currentPrescriptionsTotal: number;
   previousPatientsTotal: number;
+  previousAppointmentsTotal: number;
   previousPrescriptionsTotal: number;
   points: DashboardTrendPoint[];
 };

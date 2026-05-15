@@ -1,5 +1,6 @@
 param(
   [string[]]$ScriptNames = @(
+    "patient-dedupe-smoke.ps1",
     "patient-portal-smoke.ps1",
     "phase3-encounter-billing-smoke.ps1",
     "clinical-orders-smoke.ps1",

@@ -196,6 +196,26 @@ try {
     throw "Encounter khong duoc finalize."
   }
 
+  if (-not $encounter.isClinicalNoteSigned -or $null -eq $encounter.clinicalNoteSignedAtLocal) {
+    throw "Encounter finalized nhung clinical note chua co dau hieu ky."
+  }
+
+  $encounterWithAttachment = Invoke-RestMethod `
+    -Method Post `
+    -Uri "$baseUrl/api/hospital-encounters/$($encounter.encounterId)/attachments" `
+    -Headers $headers `
+    -ContentType "application/json" `
+    -Body ([ordered]@{
+      fileName = "phieu-kham-$suffix.pdf"
+      documentType = "EncounterSummary"
+      contentType = "application/pdf"
+      documentUri = "https://files.local/encounters/$($encounter.encounterId)/phieu-kham-$suffix.pdf"
+    } | ConvertTo-Json)
+
+  if (-not $encounterWithAttachment.attachments -or $encounterWithAttachment.attachments.Count -lt 1) {
+    throw "Encounter attachment khong duoc luu."
+  }
+
   $medicines = Invoke-RestMethod `
     -Method Get `
     -Uri "$baseUrl/api/hospital-prescriptions/medicine-catalog" `
@@ -204,6 +224,44 @@ try {
   $medicine = @($medicines) | Select-Object -First 1
   if ($null -eq $medicine) {
     throw "Khong tim thay medicine catalog de test."
+  }
+
+  $amoxicillinMedicines = @($medicines | Where-Object { $_.genericName -eq "Amoxicillin" })
+  $warningMedicines = if ($amoxicillinMedicines.Count -ge 2) { $amoxicillinMedicines | Select-Object -First 2 } else { @() }
+
+  $invalidPrescriptionRejected = $false
+  $invalidPrescriptionBody = [ordered]@{
+    encounterId = $encounter.encounterId
+    status = "Issued"
+    notes = "Invalid dosage validation smoke"
+    items = @(
+      @{
+        medicineId = $medicine.medicineId
+        doseInstruction = "2 vien/lan"
+        route = "Uong"
+        frequency = "Ngay 3 lan"
+        durationDays = 5
+        quantity = 10
+      }
+    )
+  } | ConvertTo-Json -Depth 5
+
+  try {
+    Invoke-RestMethod `
+      -Method Post `
+      -Uri "$baseUrl/api/hospital-prescriptions" `
+      -Headers $headers `
+      -ContentType "application/json" `
+      -Body $invalidPrescriptionBody | Out-Null
+    throw "Prescription invalid dang le phai bi chan boi dosage validation."
+  }
+  catch {
+    if ($_.Exception.Response -and $_.Exception.Response.StatusCode.value__ -eq 400) {
+      $invalidPrescriptionRejected = $true
+    }
+    else {
+      throw
+    }
   }
 
   $prescriptionBody = [ordered]@{
@@ -222,6 +280,32 @@ try {
     )
   } | ConvertTo-Json -Depth 5
 
+  if ($warningMedicines.Count -ge 2) {
+    $prescriptionBody = [ordered]@{
+      encounterId = $encounter.encounterId
+      status = "Issued"
+      notes = "Cap thuoc theo smoke test co canh bao trung hoat chat"
+      items = @(
+        @{
+          medicineId = $warningMedicines[0].medicineId
+          doseInstruction = "1 vien/lan"
+          route = "Uong"
+          frequency = "Ngay 2 lan"
+          durationDays = 5
+          quantity = 10
+        },
+        @{
+          medicineId = $warningMedicines[1].medicineId
+          doseInstruction = "1 vien/lan"
+          route = "Uong"
+          frequency = "Ngay 2 lan"
+          durationDays = 5
+          quantity = 10
+        }
+      )
+    } | ConvertTo-Json -Depth 5
+  }
+
   $prescription = Invoke-RestMethod `
     -Method Post `
     -Uri "$baseUrl/api/hospital-prescriptions" `
@@ -231,6 +315,10 @@ try {
 
   if ($prescription.status -ne "Issued") {
     throw "Prescription khong o trang thai Issued."
+  }
+
+  if ($warningMedicines.Count -ge 2 -and $prescription.warnings.Count -lt 1) {
+    throw "Prescription dang le phai co warning trung hoat chat."
   }
 
   $dispenseBody = @{ notes = "Cap thuoc tai quay" } | ConvertTo-Json
@@ -243,6 +331,19 @@ try {
 
   if ($dispensed.status -ne "Dispensed") {
     throw "Prescription khong duoc dispense."
+  }
+
+  $prescriptionDetail = Invoke-RestMethod `
+    -Method Get `
+    -Uri "$baseUrl/api/hospital-prescriptions/$($prescription.prescriptionId)" `
+    -Headers $headers
+
+  if (-not $prescriptionDetail.dispensingHistory -or $prescriptionDetail.dispensingHistory.Count -lt 1) {
+    throw "Prescription dispensing history khong duoc tra ve."
+  }
+
+  if ($prescriptionDetail.dispensingHistory[0].dispensingStatus -ne "Dispensed") {
+    throw "Dispensing history moi nhat khong o trang thai Dispensed."
   }
 
   $invoiceBody = @{
@@ -282,7 +383,12 @@ try {
   Write-Output ("doctor=" + $doctor.fullName)
   Write-Output ("appointment_number=" + $booking.appointmentNumber)
   Write-Output ("encounter_number=" + $encounter.encounterNumber)
+  Write-Output ("encounter_signed=" + $encounter.isClinicalNoteSigned)
+  Write-Output ("encounter_attachments=" + $encounterWithAttachment.attachments.Count)
+  Write-Output ("invalid_prescription_rejected=" + $invalidPrescriptionRejected)
   Write-Output ("prescription_number=" + $prescription.prescriptionNumber)
+  Write-Output ("prescription_warning_count=" + $prescription.warnings.Count)
+  Write-Output ("dispensing_history_count=" + $prescriptionDetail.dispensingHistory.Count)
   Write-Output ("invoice_number=" + $invoice.invoiceNumber)
   Write-Output ("invoice_total=" + $invoice.totalAmount)
   Write-Output ("payment_status=" + $paidInvoice.invoiceStatus)

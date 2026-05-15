@@ -14,13 +14,16 @@ public class HospitalEncounterService : IHospitalEncounterService
 
     private readonly IHospitalEncounterRepository _hospitalEncounterRepository;
     private readonly IHospitalIdentityBridgeService _hospitalIdentityBridgeService;
+    private readonly IBusinessMetricsRecorder _businessMetricsRecorder;
 
     public HospitalEncounterService(
         IHospitalEncounterRepository hospitalEncounterRepository,
-        IHospitalIdentityBridgeService hospitalIdentityBridgeService)
+        IHospitalIdentityBridgeService hospitalIdentityBridgeService,
+        IBusinessMetricsRecorder businessMetricsRecorder)
     {
         _hospitalEncounterRepository = hospitalEncounterRepository;
         _hospitalIdentityBridgeService = hospitalIdentityBridgeService;
+        _businessMetricsRecorder = businessMetricsRecorder;
     }
 
     public Task<PaginatedResult<HospitalEncounterSummaryDto>> GetWorklistAsync(
@@ -128,6 +131,16 @@ public class HospitalEncounterService : IHospitalEncounterService
         }
 
         await _hospitalEncounterRepository.SaveChangesAsync(ct);
+
+        _businessMetricsRecorder.IncrementEvent("hospital_encounter", "created", new Dictionary<string, string?>
+        {
+            ["status"] = normalizedStatus
+        });
+
+        if (normalizedStatus == "Finalized")
+        {
+            _businessMetricsRecorder.IncrementEvent("hospital_encounter", "finalized");
+        }
 
         var created = await _hospitalEncounterRepository.GetEncounterAggregateAsync(encounterId, ct)
             ?? throw new InvalidOperationException("Khong the tai lai encounter sau khi tao.");
@@ -267,6 +280,49 @@ public class HospitalEncounterService : IHospitalEncounterService
 
         await _hospitalEncounterRepository.SaveChangesAsync(ct);
 
+        if (finalizedNow)
+        {
+            _businessMetricsRecorder.IncrementEvent("hospital_encounter", "finalized");
+        }
+
+        var updated = await _hospitalEncounterRepository.GetEncounterAggregateAsync(encounterId, ct);
+        return updated == null ? null : MapDetail(updated);
+    }
+
+    public async Task<HospitalEncounterDetailDto?> AddAttachmentAsync(
+        Guid encounterId,
+        AddHospitalEncounterAttachmentDto request,
+        Guid? actorUserId,
+        string? actorUsername,
+        CancellationToken ct = default)
+    {
+        actorUserId = await ResolveHospitalActorUserIdAsync(actorUserId, actorUsername, ct);
+        var encounter = await _hospitalEncounterRepository.GetEncounterAggregateAsync(encounterId, ct);
+        if (encounter == null)
+        {
+            return null;
+        }
+
+        var nowUtc = DateTime.UtcNow;
+        await _hospitalEncounterRepository.AddAttachmentAsync(new HospitalEncounterAttachmentCreateCommand
+        {
+            AttachmentId = Guid.NewGuid(),
+            EncounterId = encounterId,
+            DocumentType = NormalizeDocumentType(request.DocumentType),
+            FileName = NormalizeRequiredText(request.FileName, "Ten tep"),
+            ContentType = NormalizeContentType(request.ContentType),
+            DocumentUri = NormalizeRequiredText(request.DocumentUri, "Duong dan tai lieu"),
+            UploadedAtUtc = nowUtc,
+            UploadedByUserId = actorUserId
+        }, ct);
+
+        await _hospitalEncounterRepository.SaveChangesAsync(ct);
+
+        _businessMetricsRecorder.IncrementEvent("hospital_encounter", "attachment_added", new Dictionary<string, string?>
+        {
+            ["document_type"] = NormalizeDocumentType(request.DocumentType)
+        });
+
         var updated = await _hospitalEncounterRepository.GetEncounterAggregateAsync(encounterId, ct);
         return updated == null ? null : MapDetail(updated);
     }
@@ -342,6 +398,18 @@ public class HospitalEncounterService : IHospitalEncounterService
         return string.IsNullOrWhiteSpace(normalized) ? null : normalized;
     }
 
+    private static string NormalizeDocumentType(string? value)
+    {
+        var normalized = NormalizeText(value);
+        return string.IsNullOrWhiteSpace(normalized) ? "EncounterAttachment" : normalized;
+    }
+
+    private static string NormalizeContentType(string? value)
+    {
+        var normalized = NormalizeText(value);
+        return string.IsNullOrWhiteSpace(normalized) ? "application/octet-stream" : normalized;
+    }
+
     private static string GenerateEncounterNumber(DateTime nowUtc)
         => $"ENC-{nowUtc:yyyyMMddHHmmss}-{Random.Shared.Next(1000, 9999)}";
 
@@ -372,6 +440,13 @@ public class HospitalEncounterService : IHospitalEncounterService
             EncounterType = encounter.EncounterType,
             DiagnosisCode = encounter.DiagnosisCode,
             DiagnosisType = encounter.DiagnosisType,
+            ClinicalNoteAuthoredAtLocal = encounter.ClinicalNoteAuthoredAtUtc.HasValue
+                ? ConvertUtcToClinicLocal(encounter.ClinicalNoteAuthoredAtUtc.Value)
+                : null,
+            ClinicalNoteSignedAtLocal = encounter.ClinicalNoteSignedAtUtc.HasValue
+                ? ConvertUtcToClinicLocal(encounter.ClinicalNoteSignedAtUtc.Value)
+                : null,
+            IsClinicalNoteSigned = encounter.ClinicalNoteSignedAtUtc.HasValue,
             Subjective = encounter.Subjective,
             Objective = encounter.Objective,
             Assessment = encounter.Assessment,
@@ -384,6 +459,20 @@ public class HospitalEncounterService : IHospitalEncounterService
             SystolicBp = encounter.SystolicBp,
             DiastolicBp = encounter.DiastolicBp,
             OxygenSaturation = encounter.OxygenSaturation
+            ,
+            Attachments = encounter.Attachments
+                .Select(attachment => new HospitalEncounterAttachmentDto
+                {
+                    AttachmentId = attachment.AttachmentId,
+                    DocumentType = attachment.DocumentType,
+                    FileName = attachment.FileName,
+                    ContentType = attachment.ContentType,
+                    DocumentUri = attachment.DocumentUri,
+                    UploadedAtLocal = ConvertUtcToClinicLocal(attachment.UploadedAtUtc),
+                    UploadedByUserId = attachment.UploadedByUserId,
+                    UploadedByUsername = attachment.UploadedByUsername
+                })
+                .ToList()
         };
     }
 

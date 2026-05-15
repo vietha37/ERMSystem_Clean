@@ -21,11 +21,13 @@ public class HospitalNotificationDeliveriesController : ControllerBase
     [Authorize(Policy = AppPermissions.HospitalNotifications.Read)]
     public async Task<IActionResult> GetDeliveries(
         [FromQuery] string? status,
+        [FromQuery] string? channelCode,
+        [FromQuery] string? recipient,
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken ct = default)
     {
-        var result = await _service.GetDeliveriesAsync(status, pageNumber, pageSize, ct);
+        var result = await _service.GetDeliveriesAsync(status, channelCode, recipient, pageNumber, pageSize, ct);
         return Ok(result);
     }
 
@@ -34,9 +36,14 @@ public class HospitalNotificationDeliveriesController : ControllerBase
     public async Task<IActionResult> RetryDelivery(Guid deliveryId, CancellationToken ct)
     {
         var retried = await _service.RetryDeliveryAsync(deliveryId, ct);
-        if (!retried)
+        if (retried == Application.DTOs.NotificationDeliveryRetryResult.NotFound)
         {
             return NotFound(new { message = "Khong tim thay delivery can retry." });
+        }
+
+        if (retried == Application.DTOs.NotificationDeliveryRetryResult.InvalidStatus)
+        {
+            return Conflict(new { message = "Chi duoc retry delivery dang Failed hoac Skipped." });
         }
 
         return Ok(new { message = "Da dua delivery ve trang thai Queued." });

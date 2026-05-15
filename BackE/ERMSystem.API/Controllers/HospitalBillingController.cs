@@ -102,6 +102,36 @@ public class HospitalBillingController : ControllerBase
         }
     }
 
+    [HttpPost("{invoiceId:guid}/refunds")]
+    [Authorize(Policy = AppPermissions.HospitalBilling.Refund)]
+    public async Task<IActionResult> RefundPayment(Guid invoiceId, [FromBody] RefundHospitalPaymentDto request, CancellationToken ct)
+    {
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        try
+        {
+            var result = await _hospitalBillingService.RefundPaymentAsync(
+                invoiceId,
+                request,
+                ResolveActorUserId(),
+                ResolveActorUsername(),
+                ct);
+            if (result == null)
+            {
+                return NotFound(new { message = "Khong tim thay hoa don." });
+            }
+
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     private Guid? ResolveActorUserId()
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)

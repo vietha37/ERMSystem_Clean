@@ -187,6 +187,19 @@ public class HospitalPrescriptionRepository : IHospitalPrescriptionRepository
             PrimaryDiagnosisName = diagnosis?.DiagnosisName,
             CreatedAtUtc = entity.CreatedAtUtc,
             Notes = entity.Notes,
+            DispensingHistory = entity.Dispensings
+                .OrderByDescending(x => x.DispensedAtUtc)
+                .ThenByDescending(x => x.Id)
+                .Select(x => new HospitalPrescriptionDispensingSnapshot
+                {
+                    DispensingId = x.Id,
+                    DispensingStatus = x.DispensingStatus,
+                    DispensedAtUtc = x.DispensedAtUtc,
+                    DispensedByUserId = x.DispensedByUserId,
+                    DispensedByUsername = x.DispensedByUser?.Username,
+                    Notes = x.Notes
+                })
+                .ToArray(),
             Items = entity.PrescriptionItems
                 .OrderBy(x => x.Medicine.Name)
                 .Select(x => new HospitalPrescriptionItemSnapshot
@@ -341,7 +354,8 @@ public class HospitalPrescriptionRepository : IHospitalPrescriptionRepository
                 GenericName = x.GenericName,
                 Strength = x.Strength,
                 DosageForm = x.DosageForm,
-                Unit = x.Unit
+                Unit = x.Unit,
+                IsControlled = x.IsControlled
             })
             .ToArrayAsync(ct);
     }
